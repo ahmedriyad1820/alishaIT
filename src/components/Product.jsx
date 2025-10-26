@@ -1,72 +1,63 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useReveal } from '../hooks/useReveal'
 import { getContent } from '../content'
 
 export default function Product() {
   const ref = useReveal()
-  const [tab, setTab] = useState('specs')
+  // tabs removed per user request
   const content = getContent()
   const products = useMemo(() => content.products && content.products.length ? content.products : [{ title: 'AURA CONNECT X1', features: ['Ultra-High Bandwidth','Global Mesh Network','AI Optimization'], price: 1499 }], [content])
+  const [detailIdx, setDetailIdx] = useState(() => {
+    const hash = window.location.hash
+    const m = hash.match(/^#product\/(\d+)/)
+    return m ? Number(m[1]) : null
+  })
+  useEffect(() => {
+    const onHash = () => {
+      const m = window.location.hash.match(/^#product\/(\d+)/)
+      setDetailIdx(m ? Number(m[1]) : null)
+    }
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
+
+  const activeIdx = (Number.isInteger(detailIdx) && detailIdx >= 0 && detailIdx < products.length) ? detailIdx : null
   return (
     <section id="product" ref={ref} className="section reveal">
       <div className="container">
+        {activeIdx === null ? (
+        <>
+          <h2 className="h2">Our Products</h2>
+          <div className="products-grid">
+            {products.map((p, i) => (
+              <article key={i} className="product-card" onClick={() => { window.location.hash = `#product/${i}` }}>
+                <div className="product-card-art" />
+                <h3 className="h3">{p.title}</h3>
+                <p className="muted">Starting at ${p.price}</p>
+                <ul className="feature-list small">
+                  {(p.features||[]).slice(0,3).map((f)=> <li key={f}>{f}</li>)}
+                </ul>
+              </article>
+            ))}
+          </div>
+        </>
+        ) : (
         <div className="product-hero">
           <div className="product-copy">
-            <h2 className="h2">{products[0].title} — The Future of Connectivity</h2>
+            <h2 className="h2">{products[activeIdx].title} — The Future of Connectivity</h2>
             <ul className="feature-list">
-              {(products[0].features||[]).map((f)=> <li key={f}>{f}</li>)}
+              {(products[activeIdx].features||[]).map((f)=> <li key={f}>{f}</li>)}
             </ul>
             <div className="price-row">
-              <span>Starting at ${products[0].price}</span>
+              <span>Starting at ${products[activeIdx].price}</span>
               <a href="#contact" className="btn">Buy Now</a>
             </div>
           </div>
           <div className="product-art" aria-hidden />
+          <div style={{ marginTop: 12 }}>
+            <a className="nav-btn" href="#product">← Back to products</a>
+          </div>
         </div>
-
-        <div className="tabs">
-          <button className={`tab${tab==='specs'?' is-active':''}`} onClick={()=>setTab('specs')}>Technical Specifications</button>
-          <button className={`tab${tab==='reviews'?' is-active':''}`} onClick={()=>setTab('reviews')}>Customer Reviews</button>
-          <button className={`tab${tab==='compare'?' is-active':''}`} onClick={()=>setTab('compare')}>Compare Models</button>
-        </div>
-
-        {tab==='specs' && (
-          <div className="grid glow-cards">
-            <article className="glow-card cyan">
-              <h3 className="h3">AI Powered Insights</h3>
-              <p>Adaptive routing based on predictive analytics.</p>
-            </article>
-            <article className="glow-card blue">
-              <h3 className="h3">Global Network</h3>
-              <p>Always-on multi-region coverage with redundancy.</p>
-            </article>
-            <article className="glow-card purple">
-              <h3 className="h3">Secure & Reliable</h3>
-              <p>End-to-end encryption and failover protection.</p>
-            </article>
-          </div>
-        )}
-        {tab==='reviews' && (
-          <div className="grid glow-cards">
-            <article className="glow-card">
-              <p>“Changed how we operate. Rock-solid.” — A. Khan</p>
-            </article>
-            <article className="glow-card">
-              <p>“Bandwidth doubled, latency down 40%.” — S. Roy</p>
-            </article>
-          </div>
-        )}
-        {tab==='compare' && (
-          <div className="grid glow-cards">
-            <article className="glow-card">
-              <h3 className="h3">X1</h3>
-              <p>Base model with excellent performance.</p>
-            </article>
-            <article className="glow-card">
-              <h3 className="h3">X1 Pro</h3>
-              <p>Upgraded CPU, AI accelerator, dual WAN.</p>
-            </article>
-          </div>
         )}
       </div>
     </section>

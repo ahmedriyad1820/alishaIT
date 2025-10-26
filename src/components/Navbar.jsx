@@ -1,45 +1,73 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 
-export default function Navbar() {
-  const [open, setOpen] = useState(false)
+export default function Navbar({ onNavigate, currentPage }) {
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
 
-  useEffect(() => {
-    const onHashChange = () => setOpen(false)
-    window.addEventListener('hashchange', onHashChange)
-    return () => window.removeEventListener('hashchange', onHashChange)
-  }, [])
+  const handleNavClick = (page) => {
+    onNavigate(page)
+    setIsMenuOpen(false)
+  }
 
   return (
-    <header className={`nav${open ? ' nav-open' : ''}`}>
-      <div className="container">
-        <a href="#home" className="brand brand-row" aria-label="Alisha IT home">
-          <img src="/logo.png" alt="Alisha IT logo" className="logo-img" />
-        </a>
+    <nav className="navbar">
+      <div className="nav-container">
+        <div className="nav-brand">
+          <button onClick={() => handleNavClick('home')}>
+            <img 
+              src="/logo2.png" 
+              alt="Alisha IT Solutions" 
+              className="company-logo"
+            />
+          </button>
+        </div>
 
-        <nav className="links">
-          <a href="#home" className="nav-btn">Home</a>
-          <a href="#about" className="nav-btn">About</a>
-          <a href="#services" className="nav-btn">Services</a>
-          <a href="#product" className="nav-btn">Product</a>
-          <a href="#contact" className="btn">Contact</a>
-        </nav>
+            <div className={`nav-menu ${isMenuOpen ? 'active' : ''}`}>
+              <button 
+                onClick={() => handleNavClick('home')} 
+                className={`nav-link ${currentPage === 'home' ? 'active' : ''}`}
+              >
+                Home
+              </button>
+              <button 
+                onClick={() => handleNavClick('about')} 
+                className={`nav-link ${currentPage === 'about' ? 'active' : ''}`}
+              >
+                About
+              </button>
+              <button 
+                onClick={() => handleNavClick('services')} 
+                className={`nav-link ${currentPage === 'services' ? 'active' : ''}`}
+              >
+                Services
+              </button>
+              <button 
+                onClick={() => handleNavClick('project')} 
+                className={`nav-link ${currentPage === 'project' ? 'active' : ''}`}
+              >
+                Project
+              </button>
+              <button 
+                onClick={() => handleNavClick('product')} 
+                className={`nav-link ${currentPage === 'product' ? 'active' : ''}`}
+              >
+                Product
+              </button>
+              <button 
+                onClick={() => handleNavClick('contact')} 
+                className={`nav-link ${currentPage === 'contact' ? 'active' : ''}`}
+              >
+                Contact
+              </button>
+            </div>
 
-        <button className={`hamburger${open ? ' is-active' : ''}`} aria-label="Toggle menu" aria-expanded={open}
-          onClick={() => setOpen(!open)} type="button">
-          <span />
-          <span />
-          <span />
-        </button>
+
+        <div className="nav-toggle" onClick={() => setIsMenuOpen(!isMenuOpen)}>
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
       </div>
-
-      <div className="mobile-menu">
-        <a href="#home" className="nav-item" onClick={() => setOpen(false)}>Home</a>
-        <a href="#about" className="nav-item" onClick={() => setOpen(false)}>About</a>
-        <a href="#services" className="nav-item" onClick={() => setOpen(false)}>Services</a>
-        <a href="#product" className="nav-item" onClick={() => setOpen(false)}>Product</a>
-        <a href="#contact" className="nav-item primary" onClick={() => setOpen(false)}>Contact</a>
-      </div>
-    </header>
+    </nav>
   )
 }
 

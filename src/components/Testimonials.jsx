@@ -1,48 +1,93 @@
-import { useEffect, useRef } from 'react'
-import { useReveal } from '../hooks/useReveal'
-
-const items = [
-  { quote: 'They delivered on time with exceptional quality.', author: 'A. Khan, CTO' },
-  { quote: 'Our KPIs improved across the board.', author: 'S. Roy, Product Lead' },
-  { quote: 'Reliable partner for long-term roadmap.', author: 'M. Das, Founder' },
-]
+import { useState } from 'react'
 
 export default function Testimonials() {
-  const ref = useReveal()
-  const scroller = useRef(null)
+  const [showAll, setShowAll] = useState(false)
 
-  useEffect(() => {
-    const el = scroller.current
-    if (!el) return
-    let raf
-    let x = 0
-    const run = () => {
-      x -= 0.3
-      el.style.transform = `translateX(${x}px)`
-      if (Math.abs(x) > el.scrollWidth / 3) x = 0
-      raf = requestAnimationFrame(run)
+  const testimonials = [
+    {
+      name: "Client Name",
+      profession: "PROFESSION",
+      quote: "Dolor et eos labore, stet justo sed est sed. Diam sed sed dolor stet amet eirmod eos labore diam",
+      avatar: "👨‍💼"
+    },
+    {
+      name: "Client Name",
+      profession: "PROFESSION",
+      quote: "Dolor et eos labore, stet justo sed est sed. Diam sed sed dolor stet amet eirmod eos labore diam",
+      avatar: "👨‍💼"
+    },
+    {
+      name: "Client Name",
+      profession: "PROFESSION",
+      quote: "Dolor et eos labore, stet justo sed est sed. Diam sed sed dolor stet amet eirmod eos labore diam",
+      avatar: "👩‍💼"
+    },
+    {
+      name: "Client Name",
+      profession: "PROFESSION",
+      quote: "Dolor et eos labore, stet justo sed est sed. Diam sed sed dolor stet amet eirmod eos labore diam",
+      avatar: "👩‍💼"
+    },
+    {
+      name: "Client Name",
+      profession: "PROFESSION",
+      quote: "Dolor et eos labore, stet justo sed est sed. Diam sed sed dolor stet amet eirmod eos labore diam",
+      avatar: "👨‍💼"
+    },
+    {
+      name: "Client Name",
+      profession: "PROFESSION",
+      quote: "Dolor et eos labore, stet justo sed est sed. Diam sed sed dolor stet amet eirmod eos labore diam",
+      avatar: "👩‍💼"
     }
-    raf = requestAnimationFrame(run)
-    return () => cancelAnimationFrame(raf)
-  }, [])
+  ]
+
+  const displayedTestimonials = showAll ? testimonials : testimonials.slice(0, 3)
 
   return (
-    <section id="testimonials" ref={ref} className="section reveal">
+    <section className="testimonials">
       <div className="container">
-        <h2 className="h2">What clients say</h2>
-      </div>
-      <div className="ticker">
-        <div className="track" ref={scroller}>
-          {[...items, ...items, ...items].map((t, i) => (
-            <blockquote key={i} className="quote">
-              <p>“{t.quote}”</p>
-              <cite>— {t.author}</cite>
-            </blockquote>
+        <div className="testimonials-header">
+          <span className="testimonials-subtitle">TESTIMONIAL</span>
+          <h2 className="testimonials-title">What Our Clients Say About Our Digital Services</h2>
+          <div className="testimonials-underline"></div>
+        </div>
+        
+        <div className="testimonials-grid">
+          {displayedTestimonials.map((testimonial, index) => (
+            <div key={index} className="testimonial-card">
+              <div className="testimonial-header">
+                <div className="client-avatar">{testimonial.avatar}</div>
+                <div className="client-info">
+                  <h3 className="client-name">{testimonial.name}</h3>
+                  <p className="client-profession">{testimonial.profession}</p>
+                </div>
+              </div>
+              <div className="testimonial-content">
+                <p className="testimonial-quote">"{testimonial.quote}"</p>
+              </div>
+            </div>
           ))}
+        </div>
+        
+        <div className="testimonials-actions">
+          {!showAll ? (
+            <button 
+              className="see-all-btn"
+              onClick={() => setShowAll(true)}
+            >
+              See All Testimonials
+            </button>
+          ) : (
+            <button 
+              className="minimize-btn"
+              onClick={() => setShowAll(false)}
+            >
+              Show Less
+            </button>
+          )}
         </div>
       </div>
     </section>
   )
 }
-
-
