@@ -802,7 +802,7 @@ body {
 
 .process-steps {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
   gap: 0;
   max-width: 1200px;
@@ -813,7 +813,10 @@ body {
 .process-step {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0;
+  flex: 1;
+  min-width: 200px;
 }
 
 .step-card {
@@ -823,6 +826,11 @@ body {
   transition: transform 0.3s ease;
   min-width: 200px;
   max-width: 250px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 .step-card:hover {
@@ -831,6 +839,9 @@ body {
 
 .step-icon {
   margin-bottom: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .icon-square {
@@ -842,12 +853,23 @@ body {
   justify-content: center;
   margin: 0 auto;
   border-radius: 4px;
+  flex-shrink: 0;
+  transform: rotate(45deg);
+  transition: transform 0.3s ease;
+}
+
+.icon-square:hover {
+  transform: rotate(45deg) scale(1.1);
 }
 
 .icon-symbol {
   color: white;
   font-size: 1.2rem;
   font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: rotate(-45deg);
 }
 
 .step-title {
@@ -855,12 +877,16 @@ body {
   font-weight: 700;
   color: #1a1a1a;
   margin-bottom: 12px;
+  text-align: center;
+  width: 100%;
 }
 
 .step-description {
   color: #666;
   line-height: 1.5;
   font-size: 0.9rem;
+  text-align: center;
+  width: 100%;
 }
 
 .step-arrow {
@@ -872,12 +898,63 @@ body {
   font-weight: bold;
   margin: 0 10px;
   padding: 0 5px;
+  height: 50px;
+  flex-shrink: 0;
 }
 
 .arrow-symbol {
   color: #999;
   font-size: 1.2rem;
   font-weight: bold;
+}
+
+/* Responsive design for work process */
+@media (max-width: 768px) {
+  .process-steps {
+    flex-direction: column;
+    gap: 20px;
+  }
+  
+  .process-step {
+    width: 100%;
+    max-width: 300px;
+  }
+  
+  .step-arrow {
+    transform: rotate(90deg);
+    margin: 10px 0;
+  }
+  
+  .step-card {
+    min-width: 250px;
+    max-width: 300px;
+  }
+}
+
+@media (max-width: 480px) {
+  .process-title {
+    font-size: 2rem;
+  }
+  
+  .step-card {
+    padding: 20px 15px;
+    min-width: 200px;
+  }
+  
+  .icon-square {
+    width: 45px;
+    height: 45px;
+    transform: rotate(45deg);
+  }
+  
+  .icon-square:hover {
+    transform: rotate(45deg) scale(1.1);
+  }
+  
+  .icon-symbol {
+    font-size: 1rem;
+    transform: rotate(-45deg);
+  }
 }
 
 /* FAQ Section */
@@ -6728,4 +6805,50 @@ body {
   object-fit: contain;
   display: block;
   margin: 0 auto;
+}
+
+/* Company logo for homepage About section */
+.company-logo-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 15px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+}
+
+.company-logo-homepage {
+  width: 280px;
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 5px 15px rgba(0, 0, 0, 0.2));
+  transition: transform 0.3s ease;
+}
+
+.company-logo-homepage:hover {
+  transform: scale(1.05);
+}
+
+/* Responsive adjustments for homepage logo */
+@media (max-width: 768px) {
+  .company-logo-homepage {
+    width: 220px;
+  }
+  
+  .company-logo-container {
+    padding: 15px;
+  }
+}
+
+@media (max-width: 480px) {
+  .company-logo-homepage {
+    width: 180px;
+  }
+  
+  .company-logo-container {
+    padding: 10px;
+  }
 }

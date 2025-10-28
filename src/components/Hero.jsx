@@ -1,12 +1,48 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useContent } from '../contexts/ContentContext'
+import { slidersAPI, sliderConfigAPI } from '../api/client'
 
 export default function Hero({ onNavigate }) {
   const { content } = useContent()
   const heroContent = content.home?.hero || {}
 
+  const [slides, setSlides] = useState([])
+  const [current, setCurrent] = useState(0)
+  const [intervalMs, setIntervalMs] = useState(30000)
+  const timerRef = useRef(null)
+
+  useEffect(() => {
+    let mounted = true
+    const load = async () => {
+      const [s, cfg] = await Promise.all([
+        slidersAPI.list(true),
+        sliderConfigAPI.get()
+      ])
+      if (!mounted) return
+      if (s?.success) setSlides(Array.isArray(s.data) ? s.data : [])
+      if (cfg?.success && cfg.data?.intervalMs) setIntervalMs(cfg.data.intervalMs)
+    }
+    load()
+    return () => { mounted = false }
+  }, [])
+
+  const next = useMemo(() => () => setCurrent(c => (slides.length ? (c + 1) % slides.length : 0)), [slides.length])
+  const prev = useMemo(() => () => setCurrent(c => (slides.length ? (c - 1 + slides.length) % slides.length : 0)), [slides.length])
+
+  useEffect(() => {
+    if (!slides.length) return
+    if (timerRef.current) clearInterval(timerRef.current)
+    timerRef.current = setInterval(() => {
+      setCurrent(c => (c + 1) % slides.length)
+    }, Math.max(3000, Number(intervalMs) || 30000))
+    return () => timerRef.current && clearInterval(timerRef.current)
+  }, [slides, intervalMs])
+
   return (
     <section id="home" className="hero">
-      <div className="hero-background">
+      <div className="hero-background" style={slides.length ? {
+        backgroundImage: `url(${slides[current]?.image?.startsWith('/') ? 'http://localhost:3001' + slides[current].image : slides[current]?.image})`
+      } : undefined}>
         <div className="hero-overlay"></div>
       </div>
       <div className="hero-content">
@@ -41,10 +77,12 @@ export default function Hero({ onNavigate }) {
           </div>
         </div>
       </div>
-      <div className="hero-navigation">
-        <button className="nav-arrow nav-arrow-left">‹</button>
-        <button className="nav-arrow nav-arrow-right">›</button>
-      </div>
+      {slides.length > 1 && (
+        <div className="hero-navigation">
+          <button className="nav-arrow nav-arrow-left" onClick={prev}>‹</button>
+          <button className="nav-arrow nav-arrow-right" onClick={next}>›</button>
+        </div>
+      )}
     </section>
   )
 }

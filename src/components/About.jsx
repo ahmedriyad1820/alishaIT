@@ -34,9 +34,8 @@ export default function About({ onNavigate }) {
               {aboutContent.image ? (
                 <img src={aboutContent.image} alt="About Us" className="about-img" />
               ) : (
-                <div className="professional-image">
-                  <div className="person-icon">👨‍💼</div>
-                  <div className="office-background"></div>
+                <div className="company-logo-container">
+                  <img src="/logo2.png" alt="Company Logo" className="company-logo-homepage" />
                 </div>
               )}
             </div>

@@ -175,6 +175,26 @@ const categorySchema = new mongoose.Schema({
 
 const Category = mongoose.model('Category', categorySchema)
 
+// Slider item schema and config for homepage hero slider
+const sliderItemSchema = new mongoose.Schema({
+  title: { type: String, trim: true },
+  caption: { type: String, trim: true },
+  image: { type: String, required: true, trim: true },
+  link: { type: String, trim: true },
+  order: { type: Number, default: 0 },
+  isActive: { type: Boolean, default: true },
+  createdAt: { type: Date, default: Date.now }
+})
+
+const sliderConfigSchema = new mongoose.Schema({
+  // single document collection: keep latest by upsert
+  intervalMs: { type: Number, default: 30000 },
+  updatedAt: { type: Date, default: Date.now }
+})
+
+const SliderItem = mongoose.model('SliderItem', sliderItemSchema)
+const SliderConfig = mongoose.model('SliderConfig', sliderConfigSchema)
+
 // Initialize default admin
 const initializeAdmin = async () => {
   try {
@@ -517,6 +537,78 @@ app.delete('/api/categories/:id', async (req, res) => {
     
     const category = await Category.findByIdAndDelete(id)
     res.json({ success: true, message: 'Category deleted successfully' })
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message })
+  }
+})
+
+// Slider Items CRUD
+app.get('/api/sliders', async (req, res) => {
+  try {
+    const onlyActive = req.query.active === 'true'
+    const query = onlyActive ? { isActive: true } : {}
+    const sliders = await SliderItem.find(query).sort({ order: 1, createdAt: -1 })
+    res.json({ success: true, data: sliders })
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+app.post('/api/sliders', async (req, res) => {
+  try {
+    const { title, caption, image, link, order = 0, isActive = true } = req.body
+    if (!image) {
+      return res.status(400).json({ success: false, error: 'image is required' })
+    }
+    const item = await SliderItem.create({ title, caption, image, link, order, isActive })
+    res.json({ success: true, data: item })
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message })
+  }
+})
+
+app.put('/api/sliders/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    const { title, caption, image, link, order, isActive } = req.body
+    const updated = await SliderItem.findByIdAndUpdate(id, { title, caption, image, link, order, isActive }, { new: true })
+    if (!updated) return res.status(404).json({ success: false, error: 'Slider not found' })
+    res.json({ success: true, data: updated })
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message })
+  }
+})
+
+app.delete('/api/sliders/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    const deleted = await SliderItem.findByIdAndDelete(id)
+    if (!deleted) return res.status(404).json({ success: false, error: 'Slider not found' })
+    res.json({ success: true, message: 'Slider deleted successfully' })
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message })
+  }
+})
+
+// Slider configuration (interval)
+app.get('/api/slider-config', async (req, res) => {
+  try {
+    let config = await SliderConfig.findOne()
+    if (!config) {
+      config = await SliderConfig.create({ intervalMs: 30000 })
+    }
+    res.json({ success: true, data: config })
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+app.put('/api/slider-config', async (req, res) => {
+  try {
+    const { intervalMs } = req.body
+    const value = Number(intervalMs) > 0 ? Number(intervalMs) : 30000
+    const config = await SliderConfig.findOneAndUpdate({}, { intervalMs: value, updatedAt: new Date() }, { upsert: true, new: true })
+    res.json({ success: true, data: config })
   } catch (error) {
     res.status(400).json({ success: false, error: error.message })
   }

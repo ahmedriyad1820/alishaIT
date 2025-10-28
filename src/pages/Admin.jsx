@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import AdminLogin from '../components/AdminLogin'
-import { contactAPI, quoteAPI, orderAPI, adminAPI, pageContentAPI, imageUploadAPI, projectItemsAPI, productItemsAPI, categoriesAPI } from '../api/client.js'
+import { contactAPI, quoteAPI, orderAPI, adminAPI, pageContentAPI, imageUploadAPI, projectItemsAPI, productItemsAPI, categoriesAPI, slidersAPI, sliderConfigAPI } from '../api/client.js'
 
 export default function Admin() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -30,6 +30,11 @@ export default function Admin() {
   const [categories, setCategories] = useState([])
   const [editingCategory, setEditingCategory] = useState(null)
   const [showCategoryEditModal, setShowCategoryEditModal] = useState(false)
+
+  // Slider management state
+  const [sliders, setSliders] = useState([])
+  const [sliderIntervalMs, setSliderIntervalMs] = useState(30000)
+  const [uploadingSliderImage, setUploadingSliderImage] = useState(false)
   
   // Page content state management
   const [pageContent, setPageContent] = useState({})
@@ -553,6 +558,205 @@ export default function Admin() {
     }
   }
 
+  // Slider helpers
+  const loadSliders = async () => {
+    try {
+      const res = await slidersAPI.list(false)
+      if (res?.success) {
+        setSliders(res.data || [])
+      } else {
+        console.error('Load sliders failed:', res?.error)
+        setSliders([])
+      }
+    } catch (error) {
+      console.error('Error loading sliders:', error)
+      setSliders([])
+    }
+  }
+
+  const loadSliderConfig = async () => {
+    try {
+      const res = await sliderConfigAPI.get()
+      if (res?.success) {
+        setSliderIntervalMs(res.data?.intervalMs || 30000)
+      } else {
+        console.error('Load slider config failed:', res?.error)
+        setSliderIntervalMs(30000)
+      }
+    } catch (error) {
+      console.error('Error loading slider config:', error)
+      setSliderIntervalMs(30000)
+    }
+  }
+
+  const createSlider = async () => {
+    try {
+      const title = document.getElementById('slider-title').value.trim()
+      const caption = document.getElementById('slider-caption').value.trim()
+      const image = document.getElementById('slider-image-url').value.trim()
+      const link = document.getElementById('slider-link').value.trim()
+      const order = Number(document.getElementById('slider-order').value || 0)
+      const isActive = document.getElementById('slider-active').checked
+      
+      if (!image) {
+        alert('Please upload an image')
+        return
+      }
+      
+      const res = await slidersAPI.create({ title, caption, image, link, order, isActive })
+      
+      if (res?.success) {
+        await loadSliders()
+        // Reset form fields
+        document.getElementById('slider-title').value = ''
+        document.getElementById('slider-caption').value = ''
+        document.getElementById('slider-link').value = ''
+        document.getElementById('slider-order').value = '0'
+        document.getElementById('slider-active').checked = true
+        document.getElementById('slider-image').value = ''
+        document.getElementById('slider-image-url').value = ''
+        
+        setPublishStatus('saved')
+        setTimeout(() => setPublishStatus(''), 2000)
+      } else {
+        console.error('Create slider failed:', res?.error)
+        setPublishStatus('error')
+        setTimeout(() => setPublishStatus(''), 2000)
+      }
+    } catch (error) {
+      console.error('Error creating slider:', error)
+      setPublishStatus('error')
+      setTimeout(() => setPublishStatus(''), 2000)
+    }
+  }
+
+  const deleteSlider = async (id) => {
+    if (!confirm('Delete this slide?')) return
+    
+    try {
+      const res = await slidersAPI.delete(id)
+      if (res?.success) {
+        await loadSliders()
+        setPublishStatus('deleted')
+        setTimeout(() => setPublishStatus(''), 2000)
+      } else {
+        console.error('Delete slider failed:', res?.error)
+        setPublishStatus('error')
+        setTimeout(() => setPublishStatus(''), 2000)
+      }
+    } catch (error) {
+      console.error('Error deleting slider:', error)
+      setPublishStatus('error')
+      setTimeout(() => setPublishStatus(''), 2000)
+    }
+  }
+
+  const updateSliderInterval = async () => {
+    try {
+      const val = Number(document.getElementById('slider-interval').value)
+      if (val < 3000) {
+        alert('Minimum interval is 3000ms (3 seconds)')
+        return
+      }
+      
+      const res = await sliderConfigAPI.update(val)
+      if (res?.success) {
+        setSliderIntervalMs(res.data.intervalMs)
+        setPublishStatus('updated')
+        setTimeout(() => setPublishStatus(''), 2000)
+      } else {
+        console.error('Update slider config failed:', res?.error)
+        setPublishStatus('error')
+        setTimeout(() => setPublishStatus(''), 2000)
+      }
+    } catch (error) {
+      console.error('Error updating slider config:', error)
+      setPublishStatus('error')
+      setTimeout(() => setPublishStatus(''), 2000)
+    }
+  }
+
+  const uploadSliderImage = async (file) => {
+    try {
+      setUploadingSliderImage(true)
+      const res = await imageUploadAPI.upload(file)
+      setUploadingSliderImage(false)
+      
+      if (res?.success) {
+        return res.data.url
+      } else {
+        console.error('Image upload failed:', res?.error)
+        alert('Upload failed: ' + (res?.error || 'Unknown error'))
+        return ''
+      }
+    } catch (error) {
+      console.error('Error uploading image:', error)
+      setUploadingSliderImage(false)
+      alert('Upload failed: ' + error.message)
+      return ''
+    }
+  }
+
+  // Generic image upload handler for page editor
+  const handlePageImageUpload = async (file, fieldPath, targetElement) => {
+    try {
+      const res = await imageUploadAPI.upload(file)
+      if (res?.success) {
+        // Update page content
+        const newPageContent = { ...pageContent }
+        const pathParts = fieldPath.split('-')
+        let current = newPageContent
+        
+        // Navigate to the correct nested object
+        for (let i = 0; i < pathParts.length - 1; i++) {
+          if (!current[pathParts[i]]) {
+            current[pathParts[i]] = {}
+          }
+          current = current[pathParts[i]]
+        }
+        
+        // Set the image URL
+        current[pathParts[pathParts.length - 1]] = res.data.url
+        
+        setPageContent(newPageContent)
+        
+        // Update the visual display
+        if (targetElement) {
+          const imgContainer = targetElement.closest('.image-placeholder') || targetElement.closest('.team-image')
+          if (imgContainer) {
+            const imgElement = imgContainer.querySelector('.professional-image') || 
+                              imgContainer.querySelector('.person-avatar') ||
+                              imgContainer.querySelector('.team-avatar')
+            
+            if (imgElement) {
+              imgElement.style.backgroundImage = `url(http://localhost:3001${res.data.url})`
+              imgElement.style.backgroundSize = 'cover'
+              imgElement.style.backgroundPosition = 'center'
+              
+              // Hide emoji/icon overlays
+              const iconElement = imgElement.querySelector('.person-icon') || 
+                                 imgElement.querySelector('.person-avatar') ||
+                                 imgElement.querySelector('.team-avatar')
+              if (iconElement) {
+                iconElement.style.display = 'none'
+              }
+            }
+          }
+        }
+        
+        alert('Image uploaded successfully!')
+        return res.data.url
+      } else {
+        alert('Upload failed: ' + (res?.error || 'Unknown error'))
+        return ''
+      }
+    } catch (error) {
+      console.error('Image upload error:', error)
+      alert('Upload failed: ' + error.message)
+      return ''
+    }
+  }
+
   return (
     <div className="admin-page">
       {!isAuthenticated ? (
@@ -618,6 +822,13 @@ export default function Admin() {
                 >
                   <span className="sidebar-icon">📁</span>
                   <span className="sidebar-text">Categories</span>
+                </button>
+                <button 
+                  className={`sidebar-item ${activeTab === 'sliders' ? 'active' : ''}`}
+                  onClick={() => { setActiveTab('sliders'); loadSliders(); loadSliderConfig(); }}
+                >
+                  <span className="sidebar-icon">🖼️</span>
+                  <span className="sidebar-text">Sliders</span>
                 </button>
                 <button 
                   className={`sidebar-item ${activeTab === 'pages' ? 'active' : ''}`}
@@ -1439,6 +1650,133 @@ export default function Admin() {
               </div>
             )}
 
+            {activeTab === 'sliders' && (
+              <div className="sliders-management">
+                <div className="section-header">
+                  <h2>🖼️ Slider Management</h2>
+                  <div className="header-actions">
+                    <button className="btn-secondary" onClick={() => { loadSliders(); loadSliderConfig(); }}>
+                      <span>🔄</span> Reload
+                    </button>
+                    {publishStatus === 'saved' && <span className="success-message">✅ Slide saved!</span>}
+                    {publishStatus === 'updated' && <span className="success-message">✅ Settings updated!</span>}
+                    {publishStatus === 'deleted' && <span className="success-message">✅ Slide deleted!</span>}
+                    {publishStatus === 'error' && <span className="error-message">❌ Operation failed</span>}
+                  </div>
+                </div>
+
+                <div className="add-product-card">
+                  <div className="card-header">
+                    <h3>➕ Add New Slide</h3>
+                  </div>
+                  <form id="slider-form" className="form-grid" onSubmit={(e)=>{e.preventDefault(); createSlider();}}>
+                    <div className="form-group">
+                      <label>Title</label>
+                      <input id="slider-title" placeholder="Optional title" />
+                    </div>
+                    <div className="form-group">
+                      <label>Caption</label>
+                      <input id="slider-caption" placeholder="Optional caption" />
+                    </div>
+                    <div className="form-group">
+                      <label>Link</label>
+                      <input id="slider-link" placeholder="https://example.com" />
+                    </div>
+                    <div className="form-group">
+                      <label>Order</label>
+                      <input id="slider-order" type="number" defaultValue="0" />
+                    </div>
+                    <div className="form-group">
+                      <label>Active</label>
+                      <input id="slider-active" type="checkbox" defaultChecked />
+                    </div>
+                    <div className="form-group full-width">
+                      <label>Slide Image</label>
+                      <input 
+                        id="slider-image" 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={async (e) => {
+                          const file = e.target.files[0]
+                          if (file) {
+                            const imageUrl = await uploadSliderImage(file)
+                            if (imageUrl) {
+                              document.getElementById('slider-image-url').value = imageUrl
+                            }
+                          }
+                        }}
+                      />
+                      <input id="slider-image-url" type="hidden" />
+                      {uploadingSliderImage && <div className="upload-status">Uploading...</div>}
+                    </div>
+                    <div className="form-actions full-width">
+                      <button type="submit" className="btn-primary">
+                        <span>➕</span> Add Slide
+                      </button>
+                    </div>
+                  </form>
+                </div>
+
+                <div className="add-category-card" style={{ marginTop: '20px' }}>
+                  <div className="card-header">
+                    <h3>⚙️ Slider Settings</h3>
+                  </div>
+                  <div className="form-grid">
+                    <div className="form-group">
+                      <label>Rotation Interval (ms)</label>
+                      <input id="slider-interval" type="number" defaultValue={sliderIntervalMs} />
+                    </div>
+                    <div className="form-actions">
+                      <button className="btn-secondary" onClick={updateSliderInterval}>Save Settings</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="products-table-card" style={{ marginTop: '20px' }}>
+                  <div className="card-header">
+                    <h3>🖼️ Existing Slides</h3>
+                  </div>
+                  <table className="products-table">
+                    <thead>
+                      <tr>
+                        <th style={{ width: '120px' }}>Image</th>
+                        <th>Title</th>
+                        <th>Caption</th>
+                        <th>Order</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sliders.map(s => (
+                        <tr key={s._id}>
+                          <td>
+                            {s.image ? (
+                              <img src={`http://localhost:3001${s.image}`} alt={s.title || 'slide'} className="product-thumbnail" />
+                            ) : '—'}
+                          </td>
+                          <td>{s.title || '—'}</td>
+                          <td>{s.caption || '—'}</td>
+                          <td>{s.order ?? 0}</td>
+                          <td>{s.isActive ? <span className="status-badge active">Active</span> : <span className="status-badge inactive">Inactive</span>}</td>
+                          <td>
+                            <div className="action-buttons">
+                              <button className="btn-delete" onClick={() => deleteSlider(s._id)} title="Delete Slide">🗑️</button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {sliders.length === 0 && (
+                    <div className="empty-state">
+                      <p>No slides found. Add your first slide above!</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {activeTab === 'pages' && (
               <div className="pages-section">
                 <div className="section-header">
@@ -1617,6 +1955,12 @@ export default function Admin() {
                                       accept="image/*" 
                                       className="image-upload-input" 
                                       data-field="about-image"
+                                      onChange={async (e) => {
+                                        const file = e.target.files[0]
+                                        if (file) {
+                                          await handlePageImageUpload(file, 'about-image', e.target)
+                                        }
+                                      }}
                                     />
                                     <button className="upload-btn">📷 Upload Image</button>
                                   </div>
@@ -2050,6 +2394,12 @@ export default function Admin() {
                                         accept="image/*" 
                                         className="image-upload-input" 
                                         data-field="team-image-1"
+                                        onChange={async (e) => {
+                                          const file = e.target.files[0]
+                                          if (file) {
+                                            await handlePageImageUpload(file, 'team-image-1', e.target)
+                                          }
+                                        }}
                                       />
                                       <button className="upload-btn">📷 Upload</button>
                                     </div>
@@ -2072,6 +2422,12 @@ export default function Admin() {
                                         accept="image/*" 
                                         className="image-upload-input" 
                                         data-field="team-image-2"
+                                        onChange={async (e) => {
+                                          const file = e.target.files[0]
+                                          if (file) {
+                                            await handlePageImageUpload(file, 'team-image-2', e.target)
+                                          }
+                                        }}
                                       />
                                       <button className="upload-btn">📷 Upload</button>
                                     </div>
@@ -2094,6 +2450,12 @@ export default function Admin() {
                                         accept="image/*" 
                                         className="image-upload-input" 
                                         data-field="team-image-3"
+                                        onChange={async (e) => {
+                                          const file = e.target.files[0]
+                                          if (file) {
+                                            await handlePageImageUpload(file, 'team-image-3', e.target)
+                                          }
+                                        }}
                                       />
                                       <button className="upload-btn">📷 Upload</button>
                                     </div>
@@ -2443,6 +2805,12 @@ export default function Admin() {
                                       accept="image/*" 
                                       className="image-upload-input" 
                                       data-field="map-image"
+                                      onChange={async (e) => {
+                                        const file = e.target.files[0]
+                                        if (file) {
+                                          await handlePageImageUpload(file, 'map-image', e.target)
+                                        }
+                                      }}
                                     />
                                     <button className="upload-btn">📷 Upload Map</button>
                                   </div>
@@ -2747,6 +3115,12 @@ export default function Admin() {
                                         accept="image/*" 
                                         className="image-upload-input" 
                                         data-field="project-image-1"
+                                        onChange={async (e) => {
+                                          const file = e.target.files[0]
+                                          if (file) {
+                                            await handlePageImageUpload(file, 'project-image-1', e.target)
+                                          }
+                                        }}
                                       />
                                       <button className="upload-btn">📷 Upload</button>
                                     </div>
@@ -2778,6 +3152,12 @@ export default function Admin() {
                                         accept="image/*" 
                                         className="image-upload-input" 
                                         data-field="project-image-2"
+                                        onChange={async (e) => {
+                                          const file = e.target.files[0]
+                                          if (file) {
+                                            await handlePageImageUpload(file, 'project-image-2', e.target)
+                                          }
+                                        }}
                                       />
                                       <button className="upload-btn">📷 Upload</button>
                                     </div>
@@ -2809,6 +3189,12 @@ export default function Admin() {
                                         accept="image/*" 
                                         className="image-upload-input" 
                                         data-field="project-image-3"
+                                        onChange={async (e) => {
+                                          const file = e.target.files[0]
+                                          if (file) {
+                                            await handlePageImageUpload(file, 'project-image-3', e.target)
+                                          }
+                                        }}
                                       />
                                       <button className="upload-btn">📷 Upload</button>
                                     </div>
@@ -2841,6 +3227,12 @@ export default function Admin() {
                                         accept="image/*" 
                                         className="image-upload-input" 
                                         data-field="project-image-4"
+                                        onChange={async (e) => {
+                                          const file = e.target.files[0]
+                                          if (file) {
+                                            await handlePageImageUpload(file, 'project-image-4', e.target)
+                                          }
+                                        }}
                                       />
                                       <button className="upload-btn">📷 Upload</button>
                                     </div>
@@ -2880,6 +3272,12 @@ export default function Admin() {
                                         accept="image/*" 
                                         className="image-upload-input" 
                                         data-field="project-large-image"
+                                        onChange={async (e) => {
+                                          const file = e.target.files[0]
+                                          if (file) {
+                                            await handlePageImageUpload(file, 'project-large-image', e.target)
+                                          }
+                                        }}
                                       />
                                       <button className="upload-btn">📷 Upload</button>
                                     </div>
@@ -2968,6 +3366,12 @@ export default function Admin() {
                                         accept="image/*" 
                                         className="image-upload-input" 
                                         data-field="project-small-image"
+                                        onChange={async (e) => {
+                                          const file = e.target.files[0]
+                                          if (file) {
+                                            await handlePageImageUpload(file, 'project-small-image', e.target)
+                                          }
+                                        }}
                                       />
                                       <button className="upload-btn">📷 Upload</button>
                                     </div>

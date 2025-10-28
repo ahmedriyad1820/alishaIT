@@ -201,6 +201,47 @@ export const healthCheck = async () => {
   return await apiCall('/health')
 }
 
+// Sliders API
+export const slidersAPI = {
+  async list(activeOnly = false) {
+    const qs = activeOnly ? '?active=true' : ''
+    return await apiCall(`/sliders${qs}`)
+  },
+
+  async create(item) {
+    return await apiCall('/sliders', {
+      method: 'POST',
+      body: JSON.stringify(item)
+    })
+  },
+
+  async update(id, item) {
+    return await apiCall(`/sliders/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(item)
+    })
+  },
+
+  async delete(id) {
+    return await apiCall(`/sliders/${id}`, {
+      method: 'DELETE'
+    })
+  }
+}
+
+// Slider Config API
+export const sliderConfigAPI = {
+  async get() {
+    return await apiCall('/slider-config')
+  },
+  async update(intervalMs) {
+    return await apiCall('/slider-config', {
+      method: 'PUT',
+      body: JSON.stringify({ intervalMs })
+    })
+  }
+}
+
 export default {
   contactAPI,
   quoteAPI,
@@ -211,5 +252,7 @@ export default {
   healthCheck,
   projectItemsAPI,
   productItemsAPI,
-  categoriesAPI
+  categoriesAPI,
+  slidersAPI,
+  sliderConfigAPI
 }
