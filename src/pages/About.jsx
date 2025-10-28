@@ -1,6 +1,11 @@
 import { useState } from 'react'
+import { useContent } from '../contexts/ContentContext'
 
 export default function About() {
+  const { content } = useContent()
+  const aboutPage = content.about || {}
+  const hero = aboutPage.hero || {}
+  const aboutSection = aboutPage.content || {}
   const [activeTimeline, setActiveTimeline] = useState(0)
 
   const timelineData = [
@@ -63,7 +68,7 @@ export default function About() {
       <section className="about-hero">
         <div className="hero-overlay"></div>
         <div className="hero-content">
-          <h1 className="hero-title">About Us</h1>
+          <h1 className="hero-title">{hero.title || 'About Us'}</h1>
         </div>
       </section>
 
@@ -72,12 +77,10 @@ export default function About() {
         <div className="container">
           <div className="about-content-grid">
             <div className="about-text">
-              <span className="about-subtitle">ABOUT US</span>
-              <h2 className="about-title">The Best IT Solution With 10 Years of Experience</h2>
+              <span className="about-subtitle">{aboutSection.subtitle || 'ABOUT US'}</span>
+              <h2 className="about-title">{aboutSection.title || 'The Best IT Solution With 10 Years of Experience'}</h2>
               <div className="about-underline"></div>
-              <p className="about-description">
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
-              </p>
+              <p className="about-description">{aboutSection.description || 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.'}</p>
             </div>
             <div className="about-image">
               <div className="image-placeholder">

@@ -1,6 +1,10 @@
 import { useState } from 'react'
+import { useContent } from '../contexts/ContentContext'
 
 export default function Services({ onNavigate }) {
+  const { content } = useContent()
+  const servicesPage = content.services || {}
+  const header = servicesPage.header || {}
   const [selectedService, setSelectedService] = useState(null)
   const [showDetails, setShowDetails] = useState(false)
 
@@ -72,7 +76,7 @@ export default function Services({ onNavigate }) {
           <section className="services-hero">
             <div className="hero-overlay"></div>
             <div className="hero-content">
-              <h1 className="hero-title">Service</h1>
+              <h1 className="hero-title">{header.heroTitle || 'Service'}</h1>
             </div>
           </section>
 
@@ -80,8 +84,8 @@ export default function Services({ onNavigate }) {
           <section className="services-content-section">
             <div className="container">
               <div className="services-header">
-                <span className="services-subtitle">OUR SERVICES</span>
-                <h2 className="services-title">Custom IT Solutions for Your Successful Business</h2>
+                <span className="services-subtitle">{header.subtitle || 'OUR SERVICES'}</span>
+                <h2 className="services-title">{header.title || 'Custom IT Solutions for Your Successful Business'}</h2>
                 <div className="services-underline">
                   <div className="underline-line"></div>
                   <div className="underline-dot"></div>

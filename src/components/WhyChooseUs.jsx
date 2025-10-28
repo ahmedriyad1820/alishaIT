@@ -1,10 +1,14 @@
+import { useContent } from '../contexts/ContentContext'
+
 export default function WhyChooseUs() {
+  const { content } = useContent()
+  const why = content.home?.whyChooseUs || {}
   return (
     <section className="why-choose-us">
       <div className="container">
         <div className="section-header">
-          <span className="section-subtitle">WHY CHOOSE US</span>
-          <h2 className="section-title">We Are Here to Grow Your Business Exponentially</h2>
+          <span className="section-subtitle">{why.subtitle || 'WHY CHOOSE US'}</span>
+          <h2 className="section-title">{why.title || 'We Are Here to Grow Your Business Exponentially'}</h2>
           <div className="section-underline"></div>
         </div>
         

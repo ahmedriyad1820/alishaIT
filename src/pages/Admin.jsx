@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import AdminLogin from '../components/AdminLogin'
-import { contactAPI, quoteAPI, orderAPI, adminAPI, pageContentAPI, imageUploadAPI } from '../api/client.js'
+import { contactAPI, quoteAPI, orderAPI, adminAPI, pageContentAPI, imageUploadAPI, projectItemsAPI } from '../api/client.js'
 
 export default function Admin() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -15,6 +15,9 @@ export default function Admin() {
   const [quotes, setQuotes] = useState([])
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(false)
+  const [projectItems, setProjectItems] = useState([])
+  const [editingProject, setEditingProject] = useState(null)
+  const [showEditModal, setShowEditModal] = useState(false)
   
   // Page content state management
   const [pageContent, setPageContent] = useState({})
@@ -93,9 +96,87 @@ export default function Admin() {
     setContacts([])
     setQuotes([])
     setOrders([])
+    setProjectItems([])
     setPageContent({})
     setEditingPage(null)
     setPublishStatus('')
+  }
+
+  // Projects load/create helpers
+  const loadProjects = async () => {
+    try {
+      const res = await projectItemsAPI.list()
+      if (res.success) setProjectItems(res.data)
+    } catch (e) { console.error('Load projects failed', e) }
+  }
+
+  const deleteProject = async (id) => {
+    if (!confirm('Are you sure you want to delete this project?')) return
+    
+    try {
+      const res = await projectItemsAPI.delete(id)
+      if (res.success) {
+        await loadProjects()
+        setPublishStatus('deleted')
+        setTimeout(() => setPublishStatus(''), 2000)
+      } else {
+        setPublishStatus('error')
+      }
+    } catch (e) {
+      setPublishStatus('error')
+      console.error('Error deleting project:', e)
+    }
+  }
+
+  const editProject = (project) => {
+    setEditingProject(project)
+    setShowEditModal(true)
+  }
+
+  const createProject = async (item) => {
+    try {
+      console.log('Creating project:', item)
+      const res = await projectItemsAPI.create(item)
+      console.log('Create project response:', res)
+      if (res.success) {
+        await loadProjects()
+        setPublishStatus('saved')
+        setTimeout(() => setPublishStatus(''), 2000)
+        // Clear form
+        document.getElementById('p-title').value = ''
+        document.getElementById('p-manager').value = ''
+        document.getElementById('p-client').value = ''
+        document.getElementById('p-url').value = ''
+        document.getElementById('p-icon').value = '🚀'
+        document.getElementById('p-date').value = ''
+        document.getElementById('p-rating').value = '5'
+        document.getElementById('p-desc').value = ''
+      } else {
+        setPublishStatus('error')
+        console.error('Failed to create project:', res.error)
+      }
+    } catch (e) {
+      setPublishStatus('error')
+      console.error('Error creating project:', e)
+    }
+  }
+
+  const updateProject = async (updatedData) => {
+    try {
+      const res = await projectItemsAPI.update(editingProject._id, updatedData)
+      if (res.success) {
+        await loadProjects()
+        setShowEditModal(false)
+        setEditingProject(null)
+        setPublishStatus('updated')
+        setTimeout(() => setPublishStatus(''), 2000)
+      } else {
+        setPublishStatus('error')
+      }
+    } catch (e) {
+      setPublishStatus('error')
+      console.error('Error updating project:', e)
+    }
   }
 
   // Load page content when editing a page
@@ -137,16 +218,80 @@ export default function Admin() {
     return null
   }
 
+  // Utility: dash-case to camelCase
+  const dashToCamel = (str) => str.replace(/-([a-z])/g, (_, c) => c.toUpperCase())
+
+  // Capture current editable DOM into structured sections for the current page
+  const capturePageEditsToState = () => {
+    if (!editingPage) return {}
+    const root = document.querySelector('.editable-page')
+    if (!root) return {}
+
+    const sections = {}
+    root.querySelectorAll('.editable-section').forEach((sectionEl) => {
+      const rawSection = sectionEl.getAttribute('data-section') || 'content'
+      // normalize: strip page prefix like `about-hero` -> `hero`
+      const sectionName = rawSection.startsWith(editingPage + '-')
+        ? rawSection.substring(editingPage.length + 1)
+        : rawSection
+      const normalizedSection = sectionName.includes('-') ? dashToCamel(sectionName) : sectionName
+      // Map sections to what public pages read
+      let targetSection = normalizedSection
+      if (['services', 'products', 'projects'].includes(editingPage)) {
+        if (['hero', 'servicesContent', 'productsContent', 'projectsContent', 'content'].includes(normalizedSection)) {
+          targetSection = 'header'
+        }
+      } else if (editingPage === 'contact') {
+        if (normalizedSection.includes('info') || normalizedSection === 'content' || normalizedSection === 'contactContent') {
+          targetSection = 'info'
+        } else if (normalizedSection === 'hero') {
+          targetSection = 'hero'
+        }
+      }
+
+      sections[targetSection] = sections[targetSection] || {}
+
+      sectionEl.querySelectorAll('[data-field]').forEach((fieldEl) => {
+        const rawField = fieldEl.getAttribute('data-field') || ''
+        let key = rawField
+        if (key.startsWith(editingPage + '-')) {
+          key = key.substring(editingPage.length + 1)
+        }
+        key = dashToCamel(key)
+        const value = fieldEl.tagName === 'IMG' ? (fieldEl.getAttribute('src') || '').trim() : (fieldEl.textContent || '').trim()
+        // Special mapping: About page hero "About Us" -> hero.title (not heroTitle)
+        if (editingPage === 'about' && targetSection === 'hero' && key === 'heroTitle') {
+          key = 'title'
+        }
+        if (value !== '') {
+          sections[targetSection][key] = value
+        }
+      })
+    })
+
+    setPageContent((prev) => ({ ...prev, ...sections }))
+    return sections
+  }
+
   // Publish page content
   const publishPageContent = async () => {
+    // Capture any in-progress edits from the DOM first
+    const latestSections = capturePageEditsToState()
+    // Ensure any in-progress contentEditable field commits its value
+    try {
+      if (document && document.activeElement && typeof document.activeElement.blur === 'function') {
+        document.activeElement.blur()
+      }
+    } catch (_) {}
+
     if (!editingPage) return
     
-    console.log('Publishing page content:', { editingPage, pageContent })
+    console.log('Publishing page content:', { editingPage, sections: { ...pageContent, ...latestSections } })
     setIsPublishing(true)
     setPublishStatus('')
     
     try {
-      const result = await pageContentAPI.update(editingPage, pageContent, true)
+      const result = await pageContentAPI.update(editingPage, { ...pageContent, ...latestSections }, true)
       console.log('Publish result:', result)
       if (result.success) {
         setPublishStatus('success')
@@ -164,6 +309,12 @@ export default function Admin() {
     } finally {
       setIsPublishing(false)
     }
+  }
+
+  const handleSaveDraft = () => {
+    capturePageEditsToState()
+    setPublishStatus('saved')
+    setTimeout(() => setPublishStatus(''), 2500)
   }
 
   const formatDate = (dateString) => {
@@ -236,6 +387,13 @@ export default function Admin() {
                 >
                   <span className="sidebar-icon">📦</span>
                   <span className="sidebar-text">Orders</span>
+                </button>
+                <button 
+                  className={`sidebar-item ${activeTab === 'projects' ? 'active' : ''}`}
+                  onClick={() => { setActiveTab('projects'); loadProjects() }}
+                >
+                  <span className="sidebar-icon">🚀</span>
+                  <span className="sidebar-text">Projects</span>
                 </button>
                 <button 
                   className={`sidebar-item ${activeTab === 'pages' ? 'active' : ''}`}
@@ -524,6 +682,151 @@ export default function Admin() {
               </div>
             )}
 
+            {activeTab === 'projects' && (
+              <div className="projects-management">
+                <div className="section-header">
+                  <h2>🚀 Projects Management</h2>
+                  <div className="header-actions">
+                    <button className="btn-secondary" onClick={loadProjects}>
+                      <span>🔄</span> Reload
+                    </button>
+                    {publishStatus === 'saved' && <span className="success-message">✅ Project saved!</span>}
+                    {publishStatus === 'updated' && <span className="success-message">✅ Project updated!</span>}
+                    {publishStatus === 'deleted' && <span className="success-message">✅ Project deleted!</span>}
+                    {publishStatus === 'error' && <span className="error-message">❌ Operation failed</span>}
+                  </div>
+                </div>
+
+                <div className="add-project-card">
+                  <div className="card-header">
+                    <h3>➕ Add New Project</h3>
+                  </div>
+                  <div className="form-grid">
+                    <div className="form-group">
+                      <label>Project Title *</label>
+                      <input id="p-title" placeholder="Enter project title" />
+                    </div>
+                    <div className="form-group">
+                      <label>Manager</label>
+                      <input id="p-manager" placeholder="Project manager name" />
+                    </div>
+                    <div className="form-group">
+                      <label>Client</label>
+                      <input id="p-client" placeholder="Client company name" />
+                    </div>
+                    <div className="form-group">
+                      <label>Project URL</label>
+                      <input id="p-url" placeholder="https://example.com" />
+                    </div>
+                    <div className="form-group">
+                      <label>Icon</label>
+                      <input id="p-icon" placeholder="🚀" defaultValue="🚀" />
+                    </div>
+                    <div className="form-group">
+                      <label>Completion Date *</label>
+                      <input id="p-date" type="date" />
+                    </div>
+                    <div className="form-group">
+                      <label>Rating</label>
+                      <input id="p-rating" type="number" min="1" max="5" defaultValue="5" />
+                    </div>
+                    <div className="form-group full-width">
+                      <label>Description *</label>
+                      <textarea id="p-desc" placeholder="Project description..." rows="3"></textarea>
+                    </div>
+                  </div>
+                  <div className="form-actions">
+                    <button className="btn-success" onClick={async()=>{
+                      const title = document.getElementById('p-title').value.trim()
+                      const description = document.getElementById('p-desc').value.trim()
+                      const date = document.getElementById('p-date').value
+                      
+                      if (!title || !description || !date) {
+                        alert('Please fill in Title, Description, and Date')
+                        return
+                      }
+                      
+                      const item={
+                        title,
+                        description,
+                        icon: document.getElementById('p-icon').value.trim()||'🚀',
+                        manager: document.getElementById('p-manager').value.trim(),
+                        url: document.getElementById('p-url').value.trim(),
+                        date,
+                        client: document.getElementById('p-client').value.trim(),
+                        rating: parseInt(document.getElementById('p-rating').value||'5',10)
+                      }
+                      await createProject(item)
+                    }}>
+                      <span>➕</span> Add Project
+                    </button>
+                  </div>
+                </div>
+
+                <div className="projects-table-card">
+                  <div className="card-header">
+                    <h3>📋 Projects List ({projectItems.length})</h3>
+                  </div>
+                  <div className="table-container">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Icon</th>
+                          <th>Title</th>
+                          <th>Date</th>
+                          <th>Manager</th>
+                          <th>Client</th>
+                          <th>Rating</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {projectItems.map(p => (
+                          <tr key={p._id}>
+                            <td><span className="project-icon">{p.icon}</span></td>
+                            <td className="project-title">{p.title}</td>
+                            <td>{new Date(p.date).toLocaleDateString()}</td>
+                            <td>{p.manager || '-'}</td>
+                            <td>{p.client || '-'}</td>
+                            <td>
+                              <div className="rating-stars">
+                                {[...Array(p.rating || 5)].map((_, i) => (
+                                  <span key={i} className="star">⭐</span>
+                                ))}
+                              </div>
+                            </td>
+                            <td>
+                              <div className="action-buttons">
+                                <button 
+                                  className="btn-edit" 
+                                  onClick={() => editProject(p)}
+                                  title="Edit Project"
+                                >
+                                  ✏️
+                                </button>
+                                <button 
+                                  className="btn-delete" 
+                                  onClick={() => deleteProject(p._id)}
+                                  title="Delete Project"
+                                >
+                                  🗑️
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {projectItems.length === 0 && (
+                      <div className="empty-state">
+                        <p>No projects found. Add your first project above!</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {activeTab === 'pages' && (
               <div className="pages-section">
                 <div className="section-header">
@@ -538,35 +841,35 @@ export default function Admin() {
                     <p>Edit hero section, about content, and homepage layout</p>
                     <div className="page-status">Published</div>
                   </div>
-                  
+
                   <div className="page-card" onClick={() => setActiveTab('edit-about')}>
                     <div className="page-icon">ℹ️</div>
                     <h3>About Page</h3>
-                    <p>Manage company information, team, and story content</p>
+                    <p>Manage About hero, content, and team sections</p>
                     <div className="page-status">Published</div>
                   </div>
-                  
+
                   <div className="page-card" onClick={() => setActiveTab('edit-services')}>
                     <div className="page-icon">⚙️</div>
                     <h3>Services Page</h3>
                     <p>Edit service descriptions, pricing, and process details</p>
                     <div className="page-status">Published</div>
                   </div>
-                  
+
                   <div className="page-card" onClick={() => setActiveTab('edit-contact')}>
                     <div className="page-icon">📞</div>
                     <h3>Contact Page</h3>
                     <p>Update contact information and form settings</p>
                     <div className="page-status">Published</div>
                   </div>
-                  
+
                   <div className="page-card" onClick={() => setActiveTab('edit-products')}>
                     <div className="page-icon">📦</div>
                     <h3>Products Page</h3>
                     <p>Manage product catalog and pricing information</p>
                     <div className="page-status">Published</div>
                   </div>
-                  
+
                   <div className="page-card" onClick={() => setActiveTab('edit-projects')}>
                     <div className="page-icon">🚀</div>
                     <h3>Projects Page</h3>
@@ -584,7 +887,7 @@ export default function Admin() {
                   <button className="back-btn" onClick={() => setActiveTab('pages')}>← Back to Pages</button>
                   <h2>Live Page Editor - Home Page</h2>
                   <div className="editor-tools">
-                    <button className="btn-primary">Save Changes</button>
+                    <button className="btn-primary" onClick={handleSaveDraft}>Save Changes</button>
                     <button className="btn-secondary">Preview</button>
                     <button 
                       className="btn-success" 
@@ -720,6 +1023,7 @@ export default function Admin() {
                               className="services-subtitle editable-text" 
                               data-field="services-subtitle"
                               contentEditable="true"
+                              onBlur={(e) => handleContentChange('services', 'subtitle', e.target.textContent)}
                             >
                               OUR SERVICES
                             </span>
@@ -727,6 +1031,7 @@ export default function Admin() {
                               className="services-title editable-text" 
                               data-field="services-title"
                               contentEditable="true"
+                              onBlur={(e) => handleContentChange('services', 'title', e.target.textContent)}
                             >
                               We Provide The Best Service For You
                             </h2>
@@ -855,7 +1160,7 @@ export default function Admin() {
                   <button className="back-btn" onClick={() => setActiveTab('pages')}>← Back to Pages</button>
                   <h2>Live Page Editor - About Page</h2>
                   <div className="editor-tools">
-                    <button className="btn-primary">Save Changes</button>
+                    <button className="btn-primary" onClick={handleSaveDraft}>Save Changes</button>
                     <button className="btn-secondary">Preview</button>
                     <button 
                       className="btn-success"
@@ -882,7 +1187,7 @@ export default function Admin() {
                             contentEditable="true"
                             onBlur={(e) => handleContentChange('hero', 'title', e.target.textContent)}
                           >
-                            About Us
+                            {pageContent.hero?.title || 'About Us'}
                           </h1>
                         </div>
                       </section>
@@ -898,7 +1203,7 @@ export default function Admin() {
                                 contentEditable="true"
                                 onBlur={(e) => handleContentChange('content', 'subtitle', e.target.textContent)}
                               >
-                                ABOUT US
+                                {pageContent.content?.subtitle || 'ABOUT US'}
                               </span>
                               <h2 
                                 className="about-title editable-text" 
@@ -906,7 +1211,7 @@ export default function Admin() {
                                 contentEditable="true"
                                 onBlur={(e) => handleContentChange('content', 'title', e.target.textContent)}
                               >
-                                The Best IT Solution With 10 Years of Experience
+                                {pageContent.content?.title || 'The Best IT Solution With 10 Years of Experience'}
                               </h2>
                               <div className="about-underline"></div>
                               
@@ -916,7 +1221,7 @@ export default function Admin() {
                                 contentEditable="true"
                                 onBlur={(e) => handleContentChange('content', 'description', e.target.textContent)}
                               >
-                                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+                                {pageContent.content?.description || 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.'}
                               </p>
                               
                               <div className="about-features">
@@ -1133,7 +1438,7 @@ export default function Admin() {
                   <button className="back-btn" onClick={() => setActiveTab('pages')}>← Back to Pages</button>
                   <h2>Live Page Editor - Services Page</h2>
                   <div className="editor-tools">
-                    <button className="btn-primary">Save Changes</button>
+                    <button className="btn-primary" onClick={handleSaveDraft}>Save Changes</button>
                     <button className="btn-secondary">Preview</button>
                     <button 
                       className="btn-success"
@@ -1158,6 +1463,7 @@ export default function Admin() {
                             className="hero-title editable-text" 
                             data-field="services-hero-title"
                             contentEditable="true"
+                            onBlur={(e) => handleContentChange('header', 'heroTitle', e.target.textContent)}
                           >
                             Our Services
                           </h1>
@@ -1172,6 +1478,7 @@ export default function Admin() {
                               className="services-subtitle editable-text" 
                               data-field="services-subtitle"
                               contentEditable="true"
+                              onBlur={(e) => handleContentChange('header', 'subtitle', e.target.textContent)}
                             >
                               OUR SERVICES
                             </span>
@@ -1179,6 +1486,7 @@ export default function Admin() {
                               className="services-title editable-text" 
                               data-field="services-title"
                               contentEditable="true"
+                              onBlur={(e) => handleContentChange('header', 'title', e.target.textContent)}
                             >
                               We Provide The Best Service For You
                             </h2>
@@ -1187,6 +1495,7 @@ export default function Admin() {
                               className="services-description editable-text" 
                               data-field="services-description"
                               contentEditable="true"
+                              onBlur={(e) => handleContentChange('header', 'description', e.target.textContent)}
                             >
                               We offer comprehensive IT solutions tailored to your business needs. Our expert team delivers cutting-edge technology services.
                             </p>
@@ -1322,7 +1631,7 @@ export default function Admin() {
                   <button className="back-btn" onClick={() => setActiveTab('pages')}>← Back to Pages</button>
                   <h2>Live Page Editor - Contact Page</h2>
                   <div className="editor-tools">
-                    <button className="btn-primary">Save Changes</button>
+                    <button className="btn-primary" onClick={handleSaveDraft}>Save Changes</button>
                     <button className="btn-secondary">Preview</button>
                     <button 
                       className="btn-success"
@@ -1347,6 +1656,7 @@ export default function Admin() {
                             className="hero-title editable-text" 
                             data-field="contact-hero-title"
                             contentEditable="true"
+                            onBlur={(e) => handleContentChange('hero', 'title', e.target.textContent)}
                           >
                             If You Have Any Query, Feel Free To Contact Us
                           </h1>
@@ -1507,7 +1817,7 @@ export default function Admin() {
                   <button className="back-btn" onClick={() => setActiveTab('pages')}>← Back to Pages</button>
                   <h2>Live Page Editor - Products Page</h2>
                   <div className="editor-tools">
-                    <button className="btn-primary">Save Changes</button>
+                    <button className="btn-primary" onClick={handleSaveDraft}>Save Changes</button>
                     <button className="btn-secondary">Preview</button>
                     <button 
                       className="btn-success" 
@@ -1532,6 +1842,7 @@ export default function Admin() {
                             className="hero-title editable-text" 
                             data-field="products-hero-title"
                             contentEditable="true"
+                            onBlur={(e) => handleContentChange('header', 'heroTitle', e.target.textContent)}
                           >
                             Our Products
                           </h1>
@@ -1546,6 +1857,7 @@ export default function Admin() {
                               className="products-subtitle editable-text" 
                               data-field="products-subtitle"
                               contentEditable="true"
+                              onBlur={(e) => handleContentChange('header', 'subtitle', e.target.textContent)}
                             >
                               OUR PRODUCTS
                             </span>
@@ -1553,6 +1865,7 @@ export default function Admin() {
                               className="products-title editable-text" 
                               data-field="products-title"
                               contentEditable="true"
+                              onBlur={(e) => handleContentChange('header', 'title', e.target.textContent)}
                             >
                               Innovative Solutions for Your Business
                             </h2>
@@ -1693,6 +2006,7 @@ export default function Admin() {
                             className="hero-title editable-text" 
                             data-field="projects-hero-title"
                             contentEditable="true"
+                            onBlur={(e) => handleContentChange('header', 'heroTitle', e.target.textContent)}
                           >
                             Our Projects
                           </h1>
@@ -1707,6 +2021,7 @@ export default function Admin() {
                               className="projects-subtitle editable-text" 
                               data-field="projects-subtitle"
                               contentEditable="true"
+                              onBlur={(e) => handleContentChange('header', 'subtitle', e.target.textContent)}
                             >
                               OUR PROJECTS
                             </span>
@@ -1714,6 +2029,7 @@ export default function Admin() {
                               className="projects-title editable-text" 
                               data-field="projects-title"
                               contentEditable="true"
+                              onBlur={(e) => handleContentChange('header', 'title', e.target.textContent)}
                             >
                               Showcasing Our Latest Work
                             </h2>
@@ -2000,6 +2316,85 @@ export default function Admin() {
             </div>
           </div>
         </>
+      )}
+
+      {/* Edit Project Modal */}
+      {showEditModal && editingProject && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3>✏️ Edit Project</h3>
+              <button className="modal-close" onClick={() => { setShowEditModal(false); setEditingProject(null) }}>
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="form-grid">
+                <div className="form-group">
+                  <label>Project Title *</label>
+                  <input id="edit-title" defaultValue={editingProject.title} />
+                </div>
+                <div className="form-group">
+                  <label>Manager</label>
+                  <input id="edit-manager" defaultValue={editingProject.manager || ''} />
+                </div>
+                <div className="form-group">
+                  <label>Client</label>
+                  <input id="edit-client" defaultValue={editingProject.client || ''} />
+                </div>
+                <div className="form-group">
+                  <label>Project URL</label>
+                  <input id="edit-url" defaultValue={editingProject.url || ''} />
+                </div>
+                <div className="form-group">
+                  <label>Icon</label>
+                  <input id="edit-icon" defaultValue={editingProject.icon || '🚀'} />
+                </div>
+                <div className="form-group">
+                  <label>Completion Date *</label>
+                  <input id="edit-date" type="date" defaultValue={editingProject.date ? editingProject.date.split('T')[0] : ''} />
+                </div>
+                <div className="form-group">
+                  <label>Rating</label>
+                  <input id="edit-rating" type="number" min="1" max="5" defaultValue={editingProject.rating || 5} />
+                </div>
+                <div className="form-group full-width">
+                  <label>Description *</label>
+                  <textarea id="edit-desc" rows="3" defaultValue={editingProject.description || ''}></textarea>
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-secondary" onClick={() => { setShowEditModal(false); setEditingProject(null) }}>
+                Cancel
+              </button>
+              <button className="btn-success" onClick={async () => {
+                const title = document.getElementById('edit-title').value.trim()
+                const description = document.getElementById('edit-desc').value.trim()
+                const date = document.getElementById('edit-date').value
+                
+                if (!title || !description || !date) {
+                  alert('Please fill in Title, Description, and Date')
+                  return
+                }
+                
+                const updatedData = {
+                  title,
+                  description,
+                  icon: document.getElementById('edit-icon').value.trim() || '🚀',
+                  manager: document.getElementById('edit-manager').value.trim(),
+                  url: document.getElementById('edit-url').value.trim(),
+                  date,
+                  client: document.getElementById('edit-client').value.trim(),
+                  rating: parseInt(document.getElementById('edit-rating').value || '5', 10)
+                }
+                await updateProject(updatedData)
+              }}>
+                <span>💾</span> Update Project
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

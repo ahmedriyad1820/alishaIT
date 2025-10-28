@@ -1,66 +1,29 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { projectItemsAPI } from '../api/client.js'
 
 export default function Project() {
   const [selectedProject, setSelectedProject] = useState(null)
   const [showDetails, setShowDetails] = useState(false)
+  const [projects, setProjects] = useState([])
+  const [loading, setLoading] = useState(true)
 
-  const projects = [
-    {
-      title: "Web Design and Development",
-      description: "Amet justo dolor lorem kasd amet magna sea stet eos vero lorem ipsum dolore sed",
-      icon: "</>",
-      details: "Create stunning, responsive websites that drive engagement and conversions. Our web development services include custom websites, e-commerce solutions, and web applications.",
-      manager: "John Doe",
-      url: "www.example.com",
-      date: "01 Jan, 2045",
-      client: "John Doe",
-      rating: 5
-    },
-    {
-      title: "Mobile App Development",
-      description: "Amet justo dolor lorem kasd amet magna sea stet eos vero lorem ipsum dolore sed",
-      icon: "📱",
-      details: "Build powerful mobile applications for iOS and Android platforms. Our app development services cover everything from concept to deployment and maintenance.",
-      manager: "Jane Smith",
-      url: "www.mobileapp.com",
-      date: "15 Feb, 2045",
-      client: "Tech Corp",
-      rating: 5
-    },
-    {
-      title: "E-commerce Platform",
-      description: "Amet justo dolor lorem kasd amet magna sea stet eos vero lorem ipsum dolore sed",
-      icon: "🛒",
-      details: "Develop comprehensive e-commerce solutions with advanced features, secure payment processing, and seamless user experience.",
-      manager: "Mike Johnson",
-      url: "www.shop.com",
-      date: "20 Mar, 2045",
-      client: "Retail Inc",
-      rating: 4
-    },
-    {
-      title: "Data Analytics Dashboard",
-      description: "Amet justo dolor lorem kasd amet magna sea stet eos vero lorem ipsum dolore sed",
-      icon: "📊",
-      details: "Transform your data into actionable insights with our comprehensive analytics solutions. We help you make data-driven decisions that drive business growth.",
-      manager: "Sarah Wilson",
-      url: "www.analytics.com",
-      date: "10 Apr, 2045",
-      client: "Data Corp",
-      rating: 5
-    },
-    {
-      title: "Cloud Infrastructure",
-      description: "Amet justo dolor lorem kasd amet magna sea stet eos vero lorem ipsum dolore sed",
-      icon: "☁️",
-      details: "Migrate to the cloud with our secure, scalable cloud infrastructure services. We provide comprehensive cloud solutions for modern businesses.",
-      manager: "David Brown",
-      url: "www.cloud.com",
-      date: "05 May, 2045",
-      client: "Cloud Systems",
-      rating: 4
+  useEffect(() => {
+    loadProjects()
+  }, [])
+
+  const loadProjects = async () => {
+    try {
+      setLoading(true)
+      const result = await projectItemsAPI.list()
+      if (result.success) {
+        setProjects(result.data)
+      }
+    } catch (error) {
+      console.error('Error loading projects:', error)
+    } finally {
+      setLoading(false)
     }
-  ]
+  }
 
   const handleProjectClick = (project) => {
     setSelectedProject(project)
@@ -97,24 +60,28 @@ export default function Project() {
                 </div>
               </div>
 
-              <div className="projects-grid">
-                {projects.map((project, index) => (
-                  <div key={index} className="project-card" onClick={() => handleProjectClick(project)}>
-                    <div className="project-icon">
-                      <div className="icon-diamond">
-                        <span className="icon-symbol">{project.icon}</span>
+              {loading ? (
+                <div className="loading">Loading projects...</div>
+              ) : (
+                <div className="projects-grid">
+                  {projects.map((project, index) => (
+                    <div key={project._id || index} className="project-card" onClick={() => handleProjectClick(project)}>
+                      <div className="project-icon">
+                        <div className="icon-diamond">
+                          <span className="icon-symbol">{project.icon}</span>
+                        </div>
+                      </div>
+                      <h3 className="project-title">{project.title}</h3>
+                      <p className="project-description">{project.description}</p>
+                      <div className="project-rating">
+                        {[...Array(project.rating)].map((_, i) => (
+                          <span key={i} className="star">⭐</span>
+                        ))}
                       </div>
                     </div>
-                    <h3 className="project-title">{project.title}</h3>
-                    <p className="project-description">{project.description}</p>
-                    <div className="project-rating">
-                      {[...Array(project.rating)].map((_, i) => (
-                        <span key={i} className="star">⭐</span>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </section>
         </>
@@ -149,7 +116,7 @@ export default function Project() {
                   <div className="project-info">
                     <h2 className="project-title">{selectedProject?.title}</h2>
                     <p className="project-description">
-                      {selectedProject?.details}
+                      {selectedProject?.description}
                     </p>
                     <p className="project-description">
                       Our team of experienced professionals is dedicated to delivering high-quality solutions that meet your specific business requirements. We use the latest technologies and industry best practices to ensure your project's success.
@@ -177,7 +144,7 @@ export default function Project() {
                     </div>
                     <div className="detail-row">
                       <span className="detail-label">Complete Date:</span>
-                      <span className="detail-value">{selectedProject?.date}</span>
+                      <span className="detail-value">{selectedProject?.date ? new Date(selectedProject.date).toLocaleDateString() : 'N/A'}</span>
                     </div>
                     <div className="detail-row">
                       <span className="detail-label">Client Name:</span>

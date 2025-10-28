@@ -90,6 +90,33 @@ export const pageContentAPI = {
   }
 }
 
+// Project Items API
+export const projectItemsAPI = {
+  async list() {
+    return await apiCall('/project-items')
+  },
+
+  async create(item) {
+    return await apiCall('/project-items', {
+      method: 'POST',
+      body: JSON.stringify(item)
+    })
+  },
+
+  async update(id, item) {
+    return await apiCall(`/project-items/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(item)
+    })
+  },
+
+  async delete(id) {
+    return await apiCall(`/project-items/${id}`, {
+      method: 'DELETE'
+    })
+  }
+}
+
 // Image Upload API
 export const imageUploadAPI = {
   async upload(file) {
@@ -123,5 +150,6 @@ export default {
   adminAPI,
   pageContentAPI,
   imageUploadAPI,
-  healthCheck
+  healthCheck,
+  projectItemsAPI
 }

@@ -1,4 +1,8 @@
+import { useContent } from '../contexts/ContentContext'
+
 export default function Services() {
+  const { content } = useContent()
+  const servicesSection = content.home?.services || {}
   const services = [
     {
       title: "Cyber Security",
@@ -31,8 +35,8 @@ export default function Services() {
     <section id="services" className="services">
       <div className="container">
         <div className="services-header">
-          <span className="services-subtitle">OUR SERVICES</span>
-          <h2 className="services-title">Custom IT Solutions for Your Successful Business</h2>
+          <span className="services-subtitle">{servicesSection.subtitle || 'OUR SERVICES'}</span>
+          <h2 className="services-title">{servicesSection.title || 'Custom IT Solutions for Your Successful Business'}</h2>
           <div className="services-underline"></div>
         </div>
         

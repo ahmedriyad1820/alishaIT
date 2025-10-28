@@ -91,6 +91,21 @@ const Order = mongoose.model('Order', orderSchema)
 const Admin = mongoose.model('Admin', adminSchema)
 const PageContent = mongoose.model('PageContent', pageContentSchema)
 
+// Project item schema for Admin-managed projects
+const projectItemSchema = new mongoose.Schema({
+  title: { type: String, required: true, trim: true },
+  description: { type: String, required: true, trim: true },
+  icon: { type: String, default: '🚀' },
+  manager: { type: String, trim: true },
+  url: { type: String, trim: true },
+  date: { type: Date, required: true },
+  client: { type: String, trim: true },
+  rating: { type: Number, default: 5, min: 1, max: 5 },
+  createdAt: { type: Date, default: Date.now }
+})
+
+const ProjectItem = mongoose.model('ProjectItem', projectItemSchema)
+
 // Initialize default admin
 const initializeAdmin = async () => {
   try {
@@ -248,6 +263,59 @@ app.get('/api/admin/stats', async (req, res) => {
     })
   } catch (error) {
     res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+// Project Items CRUD (minimal: list + create)
+app.get('/api/project-items', async (req, res) => {
+  try {
+    const items = await ProjectItem.find().sort({ date: -1, createdAt: -1 })
+    res.json({ success: true, data: items })
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+app.post('/api/project-items', async (req, res) => {
+  try {
+    const { title, description, icon = '🚀', manager, url, date, client, rating = 5 } = req.body
+    if (!title || !description || !date) {
+      return res.status(400).json({ success: false, error: 'title, description and date are required' })
+    }
+    const item = await ProjectItem.create({ title, description, icon, manager, url, date, client, rating })
+    res.json({ success: true, data: item })
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message })
+  }
+})
+
+app.put('/api/project-items/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    const { title, description, icon, manager, url, date, client, rating } = req.body
+    if (!title || !description || !date) {
+      return res.status(400).json({ success: false, error: 'title, description and date are required' })
+    }
+    const item = await ProjectItem.findByIdAndUpdate(id, { title, description, icon, manager, url, date, client, rating }, { new: true })
+    if (!item) {
+      return res.status(404).json({ success: false, error: 'Project not found' })
+    }
+    res.json({ success: true, data: item })
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message })
+  }
+})
+
+app.delete('/api/project-items/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    const item = await ProjectItem.findByIdAndDelete(id)
+    if (!item) {
+      return res.status(404).json({ success: false, error: 'Project not found' })
+    }
+    res.json({ success: true, message: 'Project deleted successfully' })
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message })
   }
 })
 
