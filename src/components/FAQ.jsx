@@ -44,7 +44,17 @@ export default function FAQ() {
             <p className="faq-description">
               Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
             </p>
-            <button className="faq-button">Explore More FAQs</button>
+            <button 
+              className="faq-button"
+              onClick={() => {
+                const element = document.querySelector('.request-quote');
+                if (element) {
+                  element.scrollIntoView({ behavior: 'smooth' });
+                }
+              }}
+            >
+              Explore More FAQs
+            </button>
           </div>
           
           <div className="faq-accordion">

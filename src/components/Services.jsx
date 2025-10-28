@@ -48,12 +48,6 @@ export default function Services() {
               <p className="service-description">{service.description}</p>
             </div>
           ))}
-          
-          <div className="quote-card">
-            <h3 className="quote-title">Call Us For Quote</h3>
-            <p className="quote-description">Clita ipsum magna kasd rebum at ipsum amet dolor justo dolor est magna stet eirmod</p>
-            <div className="quote-phone">+012 345 6789</div>
-          </div>
         </div>
       </div>
     </section>

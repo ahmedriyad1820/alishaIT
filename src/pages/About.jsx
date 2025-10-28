@@ -64,11 +64,6 @@ export default function About() {
         <div className="hero-overlay"></div>
         <div className="hero-content">
           <h1 className="hero-title">About Us</h1>
-          <div className="breadcrumbs">
-            <span>Home</span>
-            <span>»</span>
-            <span>About</span>
-          </div>
         </div>
       </section>
 

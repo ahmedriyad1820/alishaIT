@@ -37,13 +37,6 @@ export default function BlogDetails() {
         <div className="hero-overlay"></div>
         <div className="hero-content">
           <h1 className="hero-title">Blog Details</h1>
-          <div className="breadcrumbs">
-            <span>Home</span>
-            <span>»</span>
-            <span>Blog</span>
-            <span>»</span>
-            <span>Blog Details</span>
-          </div>
         </div>
       </section>
 

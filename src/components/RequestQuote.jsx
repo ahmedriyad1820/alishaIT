@@ -1,6 +1,11 @@
 import { useState } from 'react'
+import { quoteAPI } from '../api/client.js'
+import { useContent } from '../contexts/ContentContext'
 
 export default function RequestQuote() {
+  const { content } = useContent()
+  const quoteContent = content.home?.quote || {}
+  
   const [form, setForm] = useState({ 
     name: '', 
     email: '', 
@@ -8,6 +13,8 @@ export default function RequestQuote() {
     message: '' 
   })
   const [sent, setSent] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   const services = [
     'Select A Service',
@@ -22,49 +29,62 @@ export default function RequestQuote() {
     setForm({ ...form, [e.target.name]: e.target.value })
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
-    setSent(true)
-    setTimeout(() => setSent(false), 3000)
+    setLoading(true)
+    setError('')
+    
+    try {
+      const result = await quoteAPI.create(form)
+      
+      if (result.success) {
+        setSent(true)
+        setForm({ name: '', email: '', service: '', message: '' })
+        setTimeout(() => setSent(false), 3000)
+        console.log('Quote request saved to MongoDB:', result.data)
+      } else {
+        setError(result.error || 'An error occurred. Please try again.')
+      }
+    } catch (err) {
+      setError('An error occurred. Please try again.')
+      console.error('Error submitting quote request:', err)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
     <section className="request-quote">
       <div className="container">
         <div className="quote-content">
-          <div className="quote-info">
-            <span className="quote-subtitle">REQUEST A QUOTE</span>
-            <h2 className="quote-title">Need A Free Quote? Please Feel Free to Contact Us</h2>
-            <div className="quote-underline">
-              <div className="underline-line"></div>
-              <div className="underline-line short"></div>
-            </div>
-
-            <div className="quote-features">
-              <div className="feature-item">
-                <div className="feature-icon">↶</div>
-                <span>Reply within 24 hours</span>
+            <div className="quote-info">
+              <span className="quote-subtitle">
+                {quoteContent.subtitle || 'REQUEST A QUOTE'}
+              </span>
+              <h2 className="quote-title">
+                {quoteContent.title || 'Need A Free Quote? Please Feel Free to Contact Us'}
+              </h2>
+              <div className="quote-underline">
+                <div className="underline-line"></div>
+                <div className="underline-line short"></div>
               </div>
-              <div className="feature-item">
-                <div className="feature-icon">📞</div>
-                <span>24 hrs telephone support</span>
-              </div>
-            </div>
 
-            <p className="quote-description">
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.
-            </p>
+              <p className="quote-description">
+                {quoteContent.description || 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.'}
+              </p>
 
-            <div className="quote-contact">
-              <button className="phone-btn">
-                <div className="phone-icon">📞</div>
-              </button>
-              <div className="contact-text">
-                <p>Call to ask any question</p>
-                <span className="phone-number">+012 345 6789</span>
+              <div className="quote-contact">
+                <button className="phone-btn">
+                  <div className="phone-icon">📞</div>
+                </button>
+                <div className="contact-text">
+                  <p>Call to ask any question</p>
+                  <span className="phone-number">
+                    {quoteContent.phoneNumber || '+012 345 6789'}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
 
           <div className="quote-form-section">
             <form className="quote-form" onSubmit={handleSubmit}>
@@ -103,9 +123,10 @@ export default function RequestQuote() {
                 onChange={handleChange}
                 required
               />
-              <button className="submit-btn" type="submit">
-                Request A Quote
+              <button className="submit-btn" type="submit" disabled={loading}>
+                {loading ? 'SUBMITTING...' : 'Request A Quote'}
               </button>
+              {error && <p className="error-message">{error}</p>}
               {sent && <p className="success-message">Thanks! We'll be in touch.</p>}
             </form>
           </div>

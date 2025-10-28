@@ -1,10 +1,13 @@
 import { useState } from 'react'
+import { orderAPI } from '../api/client.js'
 
 export default function Product() {
   const [selectedProduct, setSelectedProduct] = useState(null)
   const [showDetails, setShowDetails] = useState(false)
   const [orderForm, setOrderForm] = useState({ name: '', email: '', quantity: 1, message: '' })
   const [orderSent, setOrderSent] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   const products = [
     {
@@ -78,12 +81,34 @@ export default function Product() {
     setOrderForm({ ...orderForm, [e.target.name]: e.target.value })
   }
 
-  const handleOrderSubmit = (e) => {
+  const handleOrderSubmit = async (e) => {
     e.preventDefault()
-    console.log('Order submitted:', { product: selectedProduct?.title, ...orderForm })
-    setOrderSent(true)
-    setOrderForm({ name: '', email: '', quantity: 1, message: '' })
-    setTimeout(() => setOrderSent(false), 3000)
+    setLoading(true)
+    setError('')
+    
+    try {
+      const orderData = {
+        ...orderForm,
+        product: selectedProduct?.title,
+        amount: selectedProduct?.price ? parseInt(selectedProduct.price.replace('$', '')) * orderForm.quantity : 0
+      }
+      
+      const result = await orderAPI.create(orderData)
+      
+      if (result.success) {
+        setOrderSent(true)
+        setOrderForm({ name: '', email: '', quantity: 1, message: '' })
+        setTimeout(() => setOrderSent(false), 3000)
+        console.log('Order saved to MongoDB:', result.data)
+      } else {
+        setError(result.error || 'An error occurred. Please try again.')
+      }
+    } catch (err) {
+      setError('An error occurred. Please try again.')
+      console.error('Error submitting order:', err)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -249,9 +274,10 @@ export default function Product() {
                         value={orderForm.message}
                         onChange={handleOrderChange}
                       ></textarea>
-                      <button type="submit" className="order-btn">
-                        Place Order
+                      <button type="submit" className="order-btn" disabled={loading}>
+                        {loading ? 'PLACING ORDER...' : 'Place Order'}
                       </button>
+                      {error && <p className="error-message">{error}</p>}
                       {orderSent && <p className="success-message">Your order has been placed successfully!</p>}
                     </form>
                   </div>

@@ -1,4 +1,9 @@
+import { useContent } from '../contexts/ContentContext'
+
 export default function Hero({ onNavigate }) {
+  const { content } = useContent()
+  const heroContent = content.home?.hero || {}
+
   return (
     <section id="home" className="hero">
       <div className="hero-background">
@@ -6,10 +11,11 @@ export default function Hero({ onNavigate }) {
       </div>
       <div className="hero-content">
         <div className="hero-text">
-          <div className="company-name">ALISHA IT SOLUTION'S</div>
+          <div className="company-name">
+            {heroContent.companyName || 'ALISHA IT SOLUTION\'S'}
+          </div>
           <h1 className="hero-title">
-            Creative & Innovative<br />
-            Digital Solution
+            {heroContent.title ? heroContent.title.replace('\\n', '\n') : 'Creative & Innovative\nDigital Solution'}
           </h1>
           <div className="hero-buttons">
             <button 
@@ -24,13 +30,13 @@ export default function Hero({ onNavigate }) {
                 }, 100);
               }}
             >
-              Free Quote
+              {heroContent.primaryButton || 'Free Quote'}
             </button>
             <button 
               className="btn-secondary" 
               onClick={() => onNavigate('contact')}
             >
-              Contact Us
+              {heroContent.secondaryButton || 'Contact Us'}
             </button>
           </div>
         </div>

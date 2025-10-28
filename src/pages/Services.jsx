@@ -73,11 +73,6 @@ export default function Services({ onNavigate }) {
             <div className="hero-overlay"></div>
             <div className="hero-content">
               <h1 className="hero-title">Service</h1>
-              <div className="breadcrumbs">
-                <span>Home</span>
-                <span>»</span>
-                <span>Service</span>
-              </div>
             </div>
           </section>
 
@@ -106,12 +101,6 @@ export default function Services({ onNavigate }) {
                     <p className="service-description">{service.description}</p>
                   </div>
                 ))}
-
-                <div className="quote-card">
-                  <h3 className="quote-title">Call Us For Quote</h3>
-                  <p className="quote-description">Clita ipsum magna kasd rebum at ipsum amet dolor justo dolor est magna stet eirmod</p>
-                  <div className="quote-phone">+012 345 6789</div>
-                </div>
               </div>
             </div>
           </section>
@@ -195,13 +184,6 @@ export default function Services({ onNavigate }) {
             <div className="hero-overlay"></div>
             <div className="hero-content">
               <h1 className="hero-title">Service Details</h1>
-              <div className="breadcrumbs">
-                <span>Home</span>
-                <span>»</span>
-                <span>Service</span>
-                <span>»</span>
-                <span>{selectedService?.title}</span>
-              </div>
             </div>
           </section>
 

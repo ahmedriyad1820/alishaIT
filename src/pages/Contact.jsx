@@ -1,19 +1,38 @@
 import { useState } from 'react'
+import { contactAPI } from '../api/client.js'
 
 export default function Contact() {
   const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' })
   const [sent, setSent] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value })
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    console.log('Form submitted:', form)
-    setSent(true)
-    setForm({ name: '', email: '', subject: '', message: '' })
-    setTimeout(() => setSent(false), 3000)
+    setLoading(true)
+    setError('')
+    
+    try {
+      const result = await contactAPI.create(form)
+      
+      if (result.success) {
+        setSent(true)
+        setForm({ name: '', email: '', subject: '', message: '' })
+        setTimeout(() => setSent(false), 3000)
+        console.log('Contact saved to MongoDB:', result.data)
+      } else {
+        setError(result.error || 'An error occurred. Please try again.')
+      }
+    } catch (err) {
+      setError('An error occurred. Please try again.')
+      console.error('Error submitting contact form:', err)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -115,10 +134,11 @@ export default function Contact() {
                   ></textarea>
                 </div>
                 
-                <button type="submit" className="submit-btn">
-                  SEND
+                <button type="submit" className="submit-btn" disabled={loading}>
+                  {loading ? 'SENDING...' : 'SEND'}
                 </button>
                 
+                {error && <p className="error-message">{error}</p>}
                 {sent && <p className="success-message">Your message has been sent successfully!</p>}
               </form>
             </div>
