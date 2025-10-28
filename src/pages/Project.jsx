@@ -66,6 +66,11 @@ export default function Project() {
                 <div className="projects-grid">
                   {projects.map((project, index) => (
                     <div key={project._id || index} className="project-card" onClick={() => handleProjectClick(project)}>
+                      {project.image && (
+                        <div className="project-image">
+                          <img src={`http://localhost:3001${project.image}`} alt={project.title} className="project-main-image" />
+                        </div>
+                      )}
                       <div className="project-icon">
                         <div className="icon-diamond">
                           <span className="icon-symbol">{project.icon}</span>
@@ -101,16 +106,24 @@ export default function Project() {
               <div className="project-layout">
                 <div className="main-content">
                   <div className="project-image">
-                    <div className="image-placeholder">
-                      <div className="business-meeting">
-                        <div className="person-1">👨‍💼</div>
-                        <div className="person-2">👩‍💼</div>
-                        <div className="handshake">🤝</div>
-                        <div className="table">📋</div>
-                        <div className="document">📊</div>
+                    {selectedProject?.image ? (
+                      <img 
+                        src={`http://localhost:3001${selectedProject.image}`} 
+                        alt={selectedProject.title} 
+                        className="project-main-image"
+                      />
+                    ) : (
+                      <div className="image-placeholder">
+                        <div className="business-meeting">
+                          <div className="person-1">👨‍💼</div>
+                          <div className="person-2">👩‍💼</div>
+                          <div className="handshake">🤝</div>
+                          <div className="table">📋</div>
+                          <div className="document">📊</div>
+                        </div>
+                        <div className="office-background"></div>
                       </div>
-                      <div className="office-background"></div>
-                    </div>
+                    )}
                   </div>
 
                   <div className="project-info">
@@ -161,13 +174,21 @@ export default function Project() {
                   </div>
 
                   <div className="smaller-image">
-                    <div className="image-placeholder-small">
-                      <div className="developer-coding">
-                        <div className="person-coding">👨‍💻</div>
-                        <div className="laptop-screen">💻</div>
-                        <div className="code-lines">📝</div>
+                    {selectedProject?.image ? (
+                      <img 
+                        src={`http://localhost:3001${selectedProject.image}`} 
+                        alt={selectedProject.title} 
+                        className="project-sidebar-image"
+                      />
+                    ) : (
+                      <div className="image-placeholder-small">
+                        <div className="developer-coding">
+                          <div className="person-coding">👨‍💻</div>
+                          <div className="laptop-screen">💻</div>
+                          <div className="code-lines">📝</div>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
 
                   <div className="project-name-card">

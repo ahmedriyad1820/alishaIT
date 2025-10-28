@@ -2,9 +2,22 @@ import express from 'express'
 import mongoose from 'mongoose'
 import cors from 'cors'
 import dotenv from 'dotenv'
+import multer from 'multer'
+import path from 'path'
+import { fileURLToPath } from 'url'
+import fs from 'fs'
 
 // Load environment variables
 dotenv.config()
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+
+// Ensure uploads directory exists
+const uploadsDir = path.join(__dirname, 'uploads')
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true })
+}
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -12,6 +25,32 @@ const PORT = process.env.PORT || 3001
 // Middleware
 app.use(cors())
 app.use(express.json())
+app.use('/uploads', express.static(uploadsDir))
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadsDir)
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
+    cb(null, uniqueSuffix + path.extname(file.originalname))
+  }
+})
+
+const upload = multer({ 
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true)
+    } else {
+      cb(new Error('Only image files are allowed'), false)
+    }
+  }
+})
 
 // MongoDB connection
 // Prefer environment variable; fall back to the previous default URI
@@ -96,6 +135,7 @@ const projectItemSchema = new mongoose.Schema({
   title: { type: String, required: true, trim: true },
   description: { type: String, required: true, trim: true },
   icon: { type: String, default: '🚀' },
+  image: { type: String, trim: true }, // URL to uploaded image
   manager: { type: String, trim: true },
   url: { type: String, trim: true },
   date: { type: Date, required: true },
@@ -105,6 +145,35 @@ const projectItemSchema = new mongoose.Schema({
 })
 
 const ProjectItem = mongoose.model('ProjectItem', projectItemSchema)
+
+// Product item schema for Admin-managed products
+const productItemSchema = new mongoose.Schema({
+  title: { type: String, required: true, trim: true },
+  description: { type: String, required: true, trim: true },
+  icon: { type: String, default: '📦' },
+  image: { type: String, trim: true }, // URL to uploaded image
+  price: { type: String, trim: true },
+  category: { type: String, trim: true },
+  features: [{ type: String, trim: true }],
+  specifications: { type: String, trim: true },
+  availability: { type: String, default: 'In Stock', trim: true },
+  rating: { type: Number, default: 5, min: 1, max: 5 },
+  createdAt: { type: Date, default: Date.now }
+})
+
+const ProductItem = mongoose.model('ProductItem', productItemSchema)
+
+// Category schema for dynamic category management
+const categorySchema = new mongoose.Schema({
+  name: { type: String, required: true, trim: true, unique: true },
+  description: { type: String, trim: true },
+  icon: { type: String, default: '📁' },
+  color: { type: String, default: '#3B82F6' },
+  isActive: { type: Boolean, default: true },
+  createdAt: { type: Date, default: Date.now }
+})
+
+const Category = mongoose.model('Category', categorySchema)
 
 // Initialize default admin
 const initializeAdmin = async () => {
@@ -278,11 +347,11 @@ app.get('/api/project-items', async (req, res) => {
 
 app.post('/api/project-items', async (req, res) => {
   try {
-    const { title, description, icon = '🚀', manager, url, date, client, rating = 5 } = req.body
+    const { title, description, icon = '🚀', image, manager, url, date, client, rating = 5 } = req.body
     if (!title || !description || !date) {
       return res.status(400).json({ success: false, error: 'title, description and date are required' })
     }
-    const item = await ProjectItem.create({ title, description, icon, manager, url, date, client, rating })
+    const item = await ProjectItem.create({ title, description, icon, image, manager, url, date, client, rating })
     res.json({ success: true, data: item })
   } catch (error) {
     res.status(400).json({ success: false, error: error.message })
@@ -292,11 +361,11 @@ app.post('/api/project-items', async (req, res) => {
 app.put('/api/project-items/:id', async (req, res) => {
   try {
     const { id } = req.params
-    const { title, description, icon, manager, url, date, client, rating } = req.body
+    const { title, description, icon, image, manager, url, date, client, rating } = req.body
     if (!title || !description || !date) {
       return res.status(400).json({ success: false, error: 'title, description and date are required' })
     }
-    const item = await ProjectItem.findByIdAndUpdate(id, { title, description, icon, manager, url, date, client, rating }, { new: true })
+    const item = await ProjectItem.findByIdAndUpdate(id, { title, description, icon, image, manager, url, date, client, rating }, { new: true })
     if (!item) {
       return res.status(404).json({ success: false, error: 'Project not found' })
     }
@@ -314,6 +383,140 @@ app.delete('/api/project-items/:id', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Project not found' })
     }
     res.json({ success: true, message: 'Project deleted successfully' })
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message })
+  }
+})
+
+// Product Items CRUD
+app.get('/api/product-items', async (req, res) => {
+  try {
+    const items = await ProductItem.find().sort({ createdAt: -1 })
+    res.json({ success: true, data: items })
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+app.post('/api/product-items', async (req, res) => {
+  try {
+    const { title, description, icon = '📦', image, price, category, features, specifications, availability = 'In Stock', rating = 5 } = req.body
+    if (!title || !description) {
+      return res.status(400).json({ success: false, error: 'title and description are required' })
+    }
+    const item = await ProductItem.create({ title, description, icon, image, price, category, features, specifications, availability, rating })
+    res.json({ success: true, data: item })
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message })
+  }
+})
+
+app.put('/api/product-items/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    const { title, description, icon, image, price, category, features, specifications, availability, rating } = req.body
+    if (!title || !description) {
+      return res.status(400).json({ success: false, error: 'title and description are required' })
+    }
+    const item = await ProductItem.findByIdAndUpdate(id, { title, description, icon, image, price, category, features, specifications, availability, rating }, { new: true })
+    if (!item) {
+      return res.status(404).json({ success: false, error: 'Product not found' })
+    }
+    res.json({ success: true, data: item })
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message })
+  }
+})
+
+app.delete('/api/product-items/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    const item = await ProductItem.findByIdAndDelete(id)
+    if (!item) {
+      return res.status(404).json({ success: false, error: 'Product not found' })
+    }
+    res.json({ success: true, message: 'Product deleted successfully' })
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message })
+  }
+})
+
+// Categories CRUD
+app.get('/api/categories', async (req, res) => {
+  try {
+    const categories = await Category.find({ isActive: true }).sort({ name: 1 })
+    res.json({ success: true, data: categories })
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+app.get('/api/categories/all', async (req, res) => {
+  try {
+    const categories = await Category.find().sort({ name: 1 })
+    res.json({ success: true, data: categories })
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+app.post('/api/categories', async (req, res) => {
+  try {
+    const { name, description, icon = '📁', color = '#3B82F6' } = req.body
+    if (!name) {
+      return res.status(400).json({ success: false, error: 'Category name is required' })
+    }
+    const category = await Category.create({ name, description, icon, color })
+    res.json({ success: true, data: category })
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({ success: false, error: 'Category name already exists' })
+    }
+    res.status(400).json({ success: false, error: error.message })
+  }
+})
+
+app.put('/api/categories/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    const { name, description, icon, color, isActive } = req.body
+    if (!name) {
+      return res.status(400).json({ success: false, error: 'Category name is required' })
+    }
+    const category = await Category.findByIdAndUpdate(id, { name, description, icon, color, isActive }, { new: true })
+    if (!category) {
+      return res.status(404).json({ success: false, error: 'Category not found' })
+    }
+    res.json({ success: true, data: category })
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({ success: false, error: 'Category name already exists' })
+    }
+    res.status(400).json({ success: false, error: error.message })
+  }
+})
+
+app.delete('/api/categories/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    
+    // First get the category to check its name
+    const categoryToDelete = await Category.findById(id)
+    if (!categoryToDelete) {
+      return res.status(404).json({ success: false, error: 'Category not found' })
+    }
+    
+    // Check if any products are using this category
+    const productsUsingCategory = await ProductItem.findOne({ category: { $regex: new RegExp(`^${categoryToDelete.name}$`, 'i') } })
+    if (productsUsingCategory) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Cannot delete category. Products are still using this category.' 
+      })
+    }
+    
+    const category = await Category.findByIdAndDelete(id)
+    res.json({ success: true, message: 'Category deleted successfully' })
   } catch (error) {
     res.status(400).json({ success: false, error: error.message })
   }
@@ -372,21 +575,29 @@ app.post('/api/pages/:pageName', async (req, res) => {
 })
 
 // Image upload route
-app.post('/api/upload/image', async (req, res) => {
+app.post('/api/upload/image', upload.single('image'), async (req, res) => {
   try {
-    // For now, we'll return a placeholder URL
-    // In a real application, you'd handle file upload to cloud storage
-    const imageUrl = `/uploads/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.jpg`
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'No image file provided' })
+    }
+
+    const imageUrl = `/uploads/${req.file.filename}`
     
-    res.json({ 
-      success: true, 
-      data: { 
+    res.json({
+      success: true,
+      data: {
         url: imageUrl,
-        message: 'Image upload simulated - implement actual file upload in production'
-      } 
+        filename: req.file.filename,
+        originalName: req.file.originalname,
+        size: req.file.size
+      }
     })
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message })
+    console.error('Image upload error:', error)
+    res.status(500).json({ 
+      success: false, 
+      error: error.message || 'Image upload failed' 
+    })
   }
 })
 
@@ -433,6 +644,25 @@ const getDefaultPageContent = (pageName) => {
         clients: '200+',
         experience: '10+',
         team: '50+'
+      },
+      timeline: {
+        subtitle: 'OUR STORY',
+        title: '10 Years of Our Journey to Help Your Business',
+        item1: {
+          date: '01 Jun, 2021',
+          title: 'Lorem ipsum dolor',
+          description: 'Lorem ipsum dolor sit amet elit ornare velit non'
+        },
+        item2: {
+          date: '01 Jan, 2021',
+          title: 'Lorem ipsum dolor',
+          description: 'Lorem ipsum dolor sit amet elit ornare velit non'
+        },
+        item3: {
+          date: '01 Jun, 2020',
+          title: 'Lorem ipsum dolor',
+          description: 'Lorem ipsum dolor sit amet elit ornare velit non'
+        }
       }
     }
   }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import AdminLogin from '../components/AdminLogin'
-import { contactAPI, quoteAPI, orderAPI, adminAPI, pageContentAPI, imageUploadAPI, projectItemsAPI } from '../api/client.js'
+import { contactAPI, quoteAPI, orderAPI, adminAPI, pageContentAPI, imageUploadAPI, projectItemsAPI, productItemsAPI, categoriesAPI } from '../api/client.js'
 
 export default function Admin() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -18,6 +18,18 @@ export default function Admin() {
   const [projectItems, setProjectItems] = useState([])
   const [editingProject, setEditingProject] = useState(null)
   const [showEditModal, setShowEditModal] = useState(false)
+  const [uploadingImage, setUploadingImage] = useState(false)
+  
+  // Product management state
+  const [productItems, setProductItems] = useState([])
+  const [editingProduct, setEditingProduct] = useState(null)
+  const [showProductEditModal, setShowProductEditModal] = useState(false)
+  const [uploadingProductImage, setUploadingProductImage] = useState(false)
+  
+  // Category management state
+  const [categories, setCategories] = useState([])
+  const [editingCategory, setEditingCategory] = useState(null)
+  const [showCategoryEditModal, setShowCategoryEditModal] = useState(false)
   
   // Page content state management
   const [pageContent, setPageContent] = useState({})
@@ -148,16 +160,38 @@ export default function Admin() {
         document.getElementById('p-client').value = ''
         document.getElementById('p-url').value = ''
         document.getElementById('p-icon').value = '🚀'
+        document.getElementById('p-image').value = ''
+        document.getElementById('p-image-url').value = ''
         document.getElementById('p-date').value = ''
         document.getElementById('p-rating').value = '5'
         document.getElementById('p-desc').value = ''
       } else {
         setPublishStatus('error')
         console.error('Failed to create project:', res.error)
+        alert('Failed to create project: ' + (res.error || 'Unknown error'))
       }
     } catch (e) {
       setPublishStatus('error')
       console.error('Error creating project:', e)
+      alert('Error creating project: ' + e.message)
+    }
+  }
+
+  const uploadProjectImage = async (file) => {
+    try {
+      setUploadingImage(true)
+      const result = await imageUploadAPI.upload(file)
+      if (result.success) {
+        return result.data.url
+      } else {
+        throw new Error(result.error || 'Upload failed')
+      }
+    } catch (error) {
+      console.error('Image upload error:', error)
+      alert('Failed to upload image: ' + error.message)
+      return null
+    } finally {
+      setUploadingImage(false)
     }
   }
 
@@ -176,6 +210,182 @@ export default function Admin() {
     } catch (e) {
       setPublishStatus('error')
       console.error('Error updating project:', e)
+    }
+  }
+
+  // Products load/create helpers
+  const loadProducts = async () => {
+    try {
+      const res = await productItemsAPI.list()
+      if (res.success) setProductItems(res.data)
+    } catch (e) { console.error('Load products failed', e) }
+  }
+
+  const deleteProduct = async (id) => {
+    if (!confirm('Are you sure you want to delete this product?')) return
+    
+    try {
+      const res = await productItemsAPI.delete(id)
+      if (res.success) {
+        await loadProducts()
+        setPublishStatus('deleted')
+        setTimeout(() => setPublishStatus(''), 2000)
+      } else {
+        setPublishStatus('error')
+      }
+    } catch (e) {
+      setPublishStatus('error')
+      console.error('Error deleting product:', e)
+    }
+  }
+
+  const editProduct = (product) => {
+    setEditingProduct(product)
+    setShowProductEditModal(true)
+  }
+
+  const createProduct = async (item) => {
+    try {
+      console.log('Creating product:', item)
+      const res = await productItemsAPI.create(item)
+      console.log('Create product response:', res)
+      if (res.success) {
+        await loadProducts()
+        setPublishStatus('saved')
+        setTimeout(() => setPublishStatus(''), 2000)
+        // Clear form
+        document.getElementById('prod-title').value = ''
+        document.getElementById('prod-price').value = ''
+        document.getElementById('prod-category').value = ''
+        document.getElementById('prod-features').value = ''
+        document.getElementById('prod-specifications').value = ''
+        document.getElementById('prod-availability').value = 'In Stock'
+        document.getElementById('prod-icon').value = '📦'
+        document.getElementById('prod-image').value = ''
+        document.getElementById('prod-image-url').value = ''
+        document.getElementById('prod-rating').value = '5'
+        document.getElementById('prod-desc').value = ''
+      } else {
+        setPublishStatus('error')
+        console.error('Failed to create product:', res.error)
+        alert('Failed to create product: ' + (res.error || 'Unknown error'))
+      }
+    } catch (e) {
+      setPublishStatus('error')
+      console.error('Error creating product:', e)
+      alert('Error creating product: ' + e.message)
+    }
+  }
+
+  const uploadProductImage = async (file) => {
+    try {
+      setUploadingProductImage(true)
+      const result = await imageUploadAPI.upload(file)
+      if (result.success) {
+        return result.data.url
+      } else {
+        throw new Error(result.error || 'Upload failed')
+      }
+    } catch (error) {
+      console.error('Image upload error:', error)
+      alert('Failed to upload image: ' + error.message)
+      return null
+    } finally {
+      setUploadingProductImage(false)
+    }
+  }
+
+  const updateProduct = async (updatedData) => {
+    try {
+      const res = await productItemsAPI.update(editingProduct._id, updatedData)
+      if (res.success) {
+        await loadProducts()
+        setShowProductEditModal(false)
+        setEditingProduct(null)
+        setPublishStatus('updated')
+        setTimeout(() => setPublishStatus(''), 2000)
+      } else {
+        setPublishStatus('error')
+      }
+    } catch (e) {
+      setPublishStatus('error')
+      console.error('Error updating product:', e)
+    }
+  }
+
+  // Categories load/create helpers
+  const loadCategories = async () => {
+    try {
+      const res = await categoriesAPI.listAll()
+      if (res.success) setCategories(res.data)
+    } catch (e) { console.error('Load categories failed', e) }
+  }
+
+  const deleteCategory = async (id) => {
+    if (!confirm('Are you sure you want to delete this category?')) return
+    
+    try {
+      const res = await categoriesAPI.delete(id)
+      if (res.success) {
+        await loadCategories()
+        setPublishStatus('deleted')
+        setTimeout(() => setPublishStatus(''), 2000)
+      } else {
+        setPublishStatus('error')
+        alert(res.error || 'Failed to delete category')
+      }
+    } catch (e) {
+      setPublishStatus('error')
+      console.error('Error deleting category:', e)
+    }
+  }
+
+  const editCategory = (category) => {
+    setEditingCategory(category)
+    setShowCategoryEditModal(true)
+  }
+
+  const createCategory = async (categoryData) => {
+    try {
+      console.log('Creating category:', categoryData)
+      const res = await categoriesAPI.create(categoryData)
+      console.log('Create category response:', res)
+      if (res.success) {
+        await loadCategories()
+        setPublishStatus('saved')
+        setTimeout(() => setPublishStatus(''), 2000)
+        // Clear form
+        document.getElementById('cat-name').value = ''
+        document.getElementById('cat-description').value = ''
+        document.getElementById('cat-icon').value = '📁'
+        document.getElementById('cat-color').value = '#3B82F6'
+      } else {
+        setPublishStatus('error')
+        console.error('Failed to create category:', res.error)
+        alert('Failed to create category: ' + (res.error || 'Unknown error'))
+      }
+    } catch (e) {
+      setPublishStatus('error')
+      console.error('Error creating category:', e)
+      alert('Error creating category: ' + e.message)
+    }
+  }
+
+  const updateCategory = async (updatedData) => {
+    try {
+      const res = await categoriesAPI.update(editingCategory._id, updatedData)
+      if (res.success) {
+        await loadCategories()
+        setShowCategoryEditModal(false)
+        setEditingCategory(null)
+        setPublishStatus('updated')
+        setTimeout(() => setPublishStatus(''), 2000)
+      } else {
+        setPublishStatus('error')
+      }
+    } catch (e) {
+      setPublishStatus('error')
+      console.error('Error updating category:', e)
     }
   }
 
@@ -394,6 +604,20 @@ export default function Admin() {
                 >
                   <span className="sidebar-icon">🚀</span>
                   <span className="sidebar-text">Projects</span>
+                </button>
+                <button 
+                  className={`sidebar-item ${activeTab === 'products' ? 'active' : ''}`}
+                  onClick={() => { setActiveTab('products'); loadProducts(); loadCategories(); }}
+                >
+                  <span className="sidebar-icon">📦</span>
+                  <span className="sidebar-text">Products</span>
+                </button>
+                <button 
+                  className={`sidebar-item ${activeTab === 'categories' ? 'active' : ''}`}
+                  onClick={() => { setActiveTab('categories'); loadCategories() }}
+                >
+                  <span className="sidebar-icon">📁</span>
+                  <span className="sidebar-text">Categories</span>
                 </button>
                 <button 
                   className={`sidebar-item ${activeTab === 'pages' ? 'active' : ''}`}
@@ -719,6 +943,25 @@ export default function Admin() {
                       <input id="p-url" placeholder="https://example.com" />
                     </div>
                     <div className="form-group">
+                      <label>Project Image</label>
+                      <input 
+                        id="p-image" 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={async (e) => {
+                          const file = e.target.files[0]
+                          if (file) {
+                            const imageUrl = await uploadProjectImage(file)
+                            if (imageUrl) {
+                              document.getElementById('p-image-url').value = imageUrl
+                            }
+                          }
+                        }}
+                      />
+                      <input id="p-image-url" type="hidden" />
+                      {uploadingImage && <div className="upload-status">📤 Uploading...</div>}
+                    </div>
+                    <div className="form-group">
                       <label>Icon</label>
                       <input id="p-icon" placeholder="🚀" defaultValue="🚀" />
                     </div>
@@ -736,10 +979,25 @@ export default function Admin() {
                     </div>
                   </div>
                   <div className="form-actions">
+                    <button className="btn-secondary" onClick={async () => {
+                      console.log('Testing API connection...')
+                      try {
+                        const result = await projectItemsAPI.list()
+                        console.log('API test result:', result)
+                        alert('API connection working! Found ' + result.data.length + ' projects.')
+                      } catch (e) {
+                        console.error('API test failed:', e)
+                        alert('API connection failed: ' + e.message)
+                      }
+                    }}>
+                      Test API
+                    </button>
                     <button className="btn-success" onClick={async()=>{
                       const title = document.getElementById('p-title').value.trim()
                       const description = document.getElementById('p-desc').value.trim()
                       const date = document.getElementById('p-date').value
+                      
+                      console.log('Form data:', { title, description, date })
                       
                       if (!title || !description || !date) {
                         alert('Please fill in Title, Description, and Date')
@@ -750,12 +1008,15 @@ export default function Admin() {
                         title,
                         description,
                         icon: document.getElementById('p-icon').value.trim()||'🚀',
+                        image: document.getElementById('p-image-url').value.trim(),
                         manager: document.getElementById('p-manager').value.trim(),
                         url: document.getElementById('p-url').value.trim(),
                         date,
                         client: document.getElementById('p-client').value.trim(),
                         rating: parseInt(document.getElementById('p-rating').value||'5',10)
                       }
+                      
+                      console.log('Creating project with data:', item)
                       await createProject(item)
                     }}>
                       <span>➕</span> Add Project
@@ -771,6 +1032,7 @@ export default function Admin() {
                     <table className="data-table">
                       <thead>
                         <tr>
+                          <th>Image</th>
                           <th>Icon</th>
                           <th>Title</th>
                           <th>Date</th>
@@ -783,6 +1045,13 @@ export default function Admin() {
                       <tbody>
                         {projectItems.map(p => (
                           <tr key={p._id}>
+                            <td>
+                              {p.image ? (
+                                <img src={`http://localhost:3001${p.image}`} alt={p.title} className="project-thumbnail" />
+                              ) : (
+                                <div className="no-image">📷</div>
+                              )}
+                            </td>
                             <td><span className="project-icon">{p.icon}</span></td>
                             <td className="project-title">{p.title}</td>
                             <td>{new Date(p.date).toLocaleDateString()}</td>
@@ -821,6 +1090,349 @@ export default function Admin() {
                       <div className="empty-state">
                         <p>No projects found. Add your first project above!</p>
                       </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'products' && (
+              <div className="products-management">
+                <div className="section-header">
+                  <h2>📦 Products Management</h2>
+                  <div className="header-actions">
+                    <button className="btn-secondary" onClick={loadProducts}>
+                      <span>🔄</span> Reload
+                    </button>
+                    {publishStatus === 'saved' && <span className="success-message">✅ Product saved!</span>}
+                    {publishStatus === 'updated' && <span className="success-message">✅ Product updated!</span>}
+                    {publishStatus === 'deleted' && <span className="success-message">✅ Product deleted!</span>}
+                    {publishStatus === 'error' && <span className="error-message">❌ Operation failed</span>}
+                  </div>
+                </div>
+
+                <div className="add-product-card">
+                  <div className="card-header">
+                    <h3>➕ Add New Product</h3>
+                  </div>
+                  <div className="form-grid">
+                    <div className="form-group">
+                      <label>Product Title *</label>
+                      <input id="prod-title" placeholder="Enter product title" />
+                    </div>
+                    <div className="form-group">
+                      <label>Price</label>
+                      <input id="prod-price" placeholder="e.g., $99.99" />
+                    </div>
+                    <div className="form-group">
+                      <label>Category</label>
+                      <select id="prod-category">
+                        <option value="">Select Category</option>
+                        {categories.filter(cat => cat.isActive).map(category => (
+                          <option key={category._id} value={category.name}>
+                            {category.icon} {category.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label>Availability</label>
+                      <select id="prod-availability">
+                        <option value="In Stock">In Stock</option>
+                        <option value="Out of Stock">Out of Stock</option>
+                        <option value="Pre-order">Pre-order</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label>Product Image</label>
+                      <input 
+                        id="prod-image" 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={async (e) => {
+                          const file = e.target.files[0]
+                          if (file) {
+                            const imageUrl = await uploadProductImage(file)
+                            if (imageUrl) {
+                              document.getElementById('prod-image-url').value = imageUrl
+                            }
+                          }
+                        }}
+                      />
+                      <input id="prod-image-url" type="hidden" />
+                      {uploadingProductImage && <div className="upload-status">Uploading...</div>}
+                    </div>
+                    <div className="form-group">
+                      <label>Icon</label>
+                      <input id="prod-icon" placeholder="📦" defaultValue="📦" />
+                    </div>
+                    <div className="form-group">
+                      <label>Rating</label>
+                      <select id="prod-rating">
+                        <option value="5">5 Stars</option>
+                        <option value="4">4 Stars</option>
+                        <option value="3">3 Stars</option>
+                        <option value="2">2 Stars</option>
+                        <option value="1">1 Star</option>
+                      </select>
+                    </div>
+                    <div className="form-group full-width">
+                      <label>Description *</label>
+                      <textarea id="prod-desc" placeholder="Enter product description" rows="3"></textarea>
+                    </div>
+                    <div className="form-group full-width">
+                      <label>Features (one per line)</label>
+                      <textarea id="prod-features" placeholder="Feature 1&#10;Feature 2&#10;Feature 3" rows="3"></textarea>
+                    </div>
+                    <div className="form-group full-width">
+                      <label>Specifications</label>
+                      <textarea id="prod-specifications" placeholder="Technical specifications" rows="3"></textarea>
+                    </div>
+                  </div>
+                  <div className="form-actions">
+                    <button 
+                      className="btn-success" 
+                      onClick={() => {
+                        const title = document.getElementById('prod-title').value.trim()
+                        const description = document.getElementById('prod-desc').value.trim()
+                        const price = document.getElementById('prod-price').value.trim()
+                        const category = document.getElementById('prod-category').value.trim()
+                        const features = document.getElementById('prod-features').value.trim().split('\n').filter(f => f.trim())
+                        const specifications = document.getElementById('prod-specifications').value.trim()
+                        const availability = document.getElementById('prod-availability').value
+                        const icon = document.getElementById('prod-icon').value.trim() || '📦'
+                        const image = document.getElementById('prod-image-url').value
+                        const rating = parseInt(document.getElementById('prod-rating').value)
+
+                        if (!title || !description) {
+                          alert('Title and description are required')
+                          return
+                        }
+
+                        createProduct({
+                          title,
+                          description,
+                          price,
+                          category,
+                          features,
+                          specifications,
+                          availability,
+                          icon,
+                          image,
+                          rating
+                        })
+                      }}
+                    >
+                      Add Product
+                    </button>
+                  </div>
+                </div>
+
+                <div className="products-table-card">
+                  <div className="card-header">
+                    <h3>📋 Products List</h3>
+                  </div>
+                  <div className="table-container">
+                    {productItems.length === 0 ? (
+                      <div className="empty-state">
+                        <p>No products found. Add your first product above!</p>
+                      </div>
+                    ) : (
+                      <table className="products-table">
+                        <thead>
+                          <tr>
+                            <th>Image</th>
+                            <th>Icon</th>
+                            <th>Title</th>
+                            <th>Price</th>
+                            <th>Category</th>
+                            <th>Availability</th>
+                            <th>Rating</th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {productItems.map((product) => (
+                            <tr key={product._id}>
+                              <td>
+                                {product.image ? (
+                                  <img 
+                                    src={`http://localhost:3001${product.image}`} 
+                                    alt={product.title}
+                                    className="product-thumbnail"
+                                  />
+                                ) : (
+                                  <div className="no-image">No Image</div>
+                                )}
+                              </td>
+                              <td>
+                                <span className="product-icon">{product.icon}</span>
+                              </td>
+                              <td>
+                                <div className="product-title">{product.title}</div>
+                                <div className="product-description">{product.description}</div>
+                              </td>
+                              <td>{product.price || 'N/A'}</td>
+                              <td>{product.category || 'N/A'}</td>
+                              <td>{product.availability}</td>
+                              <td>
+                                <div className="rating-stars">
+                                  {[...Array(product.rating)].map((_, i) => (
+                                    <span key={i} className="star">⭐</span>
+                                  ))}
+                                </div>
+                              </td>
+                              <td>
+                                <div className="action-buttons">
+                                  <button 
+                                    className="btn-edit" 
+                                    onClick={() => editProduct(product)}
+                                  >
+                                    Edit
+                                  </button>
+                                  <button 
+                                    className="btn-delete" 
+                                    onClick={() => deleteProduct(product._id)}
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'categories' && (
+              <div className="categories-management">
+                <div className="section-header">
+                  <h2>📁 Categories Management</h2>
+                  <div className="header-actions">
+                    <button className="btn-secondary" onClick={loadCategories}>
+                      <span>🔄</span> Reload
+                    </button>
+                    {publishStatus === 'saved' && <span className="success-message">✅ Category saved!</span>}
+                    {publishStatus === 'updated' && <span className="success-message">✅ Category updated!</span>}
+                    {publishStatus === 'deleted' && <span className="success-message">✅ Category deleted!</span>}
+                    {publishStatus === 'error' && <span className="error-message">❌ Operation failed</span>}
+                  </div>
+                </div>
+
+                <div className="add-category-card">
+                  <div className="card-header">
+                    <h3>➕ Add New Category</h3>
+                  </div>
+                  <div className="form-grid">
+                    <div className="form-group">
+                      <label>Category Name *</label>
+                      <input id="cat-name" placeholder="Enter category name" />
+                    </div>
+                    <div className="form-group">
+                      <label>Description</label>
+                      <input id="cat-description" placeholder="Category description" />
+                    </div>
+                    <div className="form-group">
+                      <label>Icon</label>
+                      <input id="cat-icon" placeholder="📁" defaultValue="📁" />
+                    </div>
+                    <div className="form-group">
+                      <label>Color</label>
+                      <input id="cat-color" type="color" defaultValue="#3B82F6" />
+                    </div>
+                  </div>
+                  <div className="form-actions">
+                    <button 
+                      className="btn-success" 
+                      onClick={() => {
+                        const name = document.getElementById('cat-name').value.trim()
+                        const description = document.getElementById('cat-description').value.trim()
+                        const icon = document.getElementById('cat-icon').value.trim() || '📁'
+                        const color = document.getElementById('cat-color').value
+
+                        if (!name) {
+                          alert('Category name is required')
+                          return
+                        }
+
+                        createCategory({
+                          name,
+                          description,
+                          icon,
+                          color
+                        })
+                      }}
+                    >
+                      Add Category
+                    </button>
+                  </div>
+                </div>
+
+                <div className="categories-table-card">
+                  <div className="card-header">
+                    <h3>📋 Categories List</h3>
+                  </div>
+                  <div className="table-container">
+                    {categories.length === 0 ? (
+                      <div className="empty-state">
+                        <p>No categories found. Add your first category above!</p>
+                      </div>
+                    ) : (
+                      <table className="categories-table">
+                        <thead>
+                          <tr>
+                            <th>Icon</th>
+                            <th>Name</th>
+                            <th>Description</th>
+                            <th>Color</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {categories.map((category) => (
+                            <tr key={category._id}>
+                              <td>
+                                <span className="category-icon" style={{ color: category.color }}>
+                                  {category.icon}
+                                </span>
+                              </td>
+                              <td>
+                                <div className="category-name">{category.name}</div>
+                              </td>
+                              <td>{category.description || 'N/A'}</td>
+                              <td>
+                                <div className="color-preview" style={{ backgroundColor: category.color }}></div>
+                              </td>
+                              <td>
+                                <span className={`status-badge ${category.isActive ? 'active' : 'inactive'}`}>
+                                  {category.isActive ? 'Active' : 'Inactive'}
+                                </span>
+                              </td>
+                              <td>
+                                <div className="action-buttons">
+                                  <button 
+                                    className="btn-edit" 
+                                    onClick={() => editCategory(category)}
+                                  >
+                                    Edit
+                                  </button>
+                                  <button 
+                                    className="btn-delete" 
+                                    onClick={() => deleteCategory(category._id)}
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     )}
                   </div>
                 </div>
@@ -1241,20 +1853,13 @@ export default function Admin() {
                             </div>
                             
                             <div className="about-image">
-                              <div className="image-upload-container">
-                                <div className="image-placeholder editable-image" data-field="about-image">
-                                  <div className="professional-image">
-                                    <div className="person-icon">👨‍💼</div>
-                                    <div className="office-background"></div>
+                              <div className="company-logo-animated">
+                                <div className="logo-container">
+                                  <div className="logo-front">
+                                    <img src="/logo.png" alt="Company Logo" className="logo-image" />
                                   </div>
-                                  <div className="image-upload-overlay">
-                                    <input 
-                                      type="file" 
-                                      accept="image/*" 
-                                      className="image-upload-input" 
-                                      data-field="about-image"
-                                    />
-                                    <button className="upload-btn">📷 Upload Image</button>
+                                  <div className="logo-back">
+                                    <img src="/logo2.png" alt="Company Logo" className="logo-image" />
                                   </div>
                                 </div>
                               </div>
@@ -1295,41 +1900,117 @@ export default function Admin() {
                               className="story-subtitle editable-text" 
                               data-field="story-subtitle"
                               contentEditable="true"
+                              onBlur={(e) => handleContentChange('timeline', 'subtitle', e.target.textContent)}
                             >
-                              OUR STORY
+                              {pageContent.timeline?.subtitle || 'OUR STORY'}
                             </span>
                             <h2 
                               className="story-title editable-text" 
                               data-field="story-title"
                               contentEditable="true"
+                              onBlur={(e) => handleContentChange('timeline', 'title', e.target.textContent)}
                             >
-                              Our Journey Through The Years
+                              {pageContent.timeline?.title || '10 Years of Our Journey to Help Your Business'}
                             </h2>
                             <div className="story-underline"></div>
                           </div>
-                          
-                          <div className="timeline">
-                            <div className="timeline-item editable-card" data-field="timeline-1">
-                              <div className="timeline-year editable-text" contentEditable="true">2014</div>
+
+                          <div className="timeline-container">
+                            <div className="timeline-line"></div>
+                            
+                            {/* Timeline Item 1 */}
+                            <div className="timeline-item timeline-left editable-card" data-field="timeline-1">
+                              <div className="timeline-marker">
+                                <div className="timeline-diamond"></div>
+                              </div>
                               <div className="timeline-content">
-                                <h3 className="timeline-title editable-text" contentEditable="true">Company Founded</h3>
-                                <p className="timeline-description editable-text" contentEditable="true">Started as a small IT consulting firm with big dreams.</p>
+                                <div 
+                                  className="timeline-date editable-text" 
+                                  contentEditable="true"
+                                  onBlur={(e) => handleContentChange('timeline', 'item1', { ...pageContent.timeline?.item1, date: e.target.textContent })}
+                                >
+                                  {pageContent.timeline?.item1?.date || '01 Jun, 2021'}
+                                </div>
+                                <div className="timeline-card">
+                                  <h3 
+                                    className="editable-text" 
+                                    contentEditable="true"
+                                    onBlur={(e) => handleContentChange('timeline', 'item1', { ...pageContent.timeline?.item1, title: e.target.textContent })}
+                                  >
+                                    {pageContent.timeline?.item1?.title || 'Lorem ipsum dolor'}
+                                  </h3>
+                                  <p 
+                                    className="editable-text" 
+                                    contentEditable="true"
+                                    onBlur={(e) => handleContentChange('timeline', 'item1', { ...pageContent.timeline?.item1, description: e.target.textContent })}
+                                  >
+                                    {pageContent.timeline?.item1?.description || 'Lorem ipsum dolor sit amet elit ornare velit non'}
+                                  </p>
+                                </div>
                               </div>
                             </div>
-                            
-                            <div className="timeline-item editable-card" data-field="timeline-2">
-                              <div className="timeline-year editable-text" contentEditable="true">2018</div>
+
+                            {/* Timeline Item 2 */}
+                            <div className="timeline-item timeline-right editable-card" data-field="timeline-2">
+                              <div className="timeline-marker">
+                                <div className="timeline-diamond"></div>
+                              </div>
                               <div className="timeline-content">
-                                <h3 className="timeline-title editable-text" contentEditable="true">Expansion</h3>
-                                <p className="timeline-description editable-text" contentEditable="true">Expanded our services to include web development and mobile apps.</p>
+                                <div 
+                                  className="timeline-date editable-text" 
+                                  contentEditable="true"
+                                  onBlur={(e) => handleContentChange('timeline', 'item2', { ...pageContent.timeline?.item2, date: e.target.textContent })}
+                                >
+                                  {pageContent.timeline?.item2?.date || '01 Jan, 2021'}
+                                </div>
+                                <div className="timeline-card">
+                                  <h3 
+                                    className="editable-text" 
+                                    contentEditable="true"
+                                    onBlur={(e) => handleContentChange('timeline', 'item2', { ...pageContent.timeline?.item2, title: e.target.textContent })}
+                                  >
+                                    {pageContent.timeline?.item2?.title || 'Lorem ipsum dolor'}
+                                  </h3>
+                                  <p 
+                                    className="editable-text" 
+                                    contentEditable="true"
+                                    onBlur={(e) => handleContentChange('timeline', 'item2', { ...pageContent.timeline?.item2, description: e.target.textContent })}
+                                  >
+                                    {pageContent.timeline?.item2?.description || 'Lorem ipsum dolor sit amet elit ornare velit non'}
+                                  </p>
+                                </div>
                               </div>
                             </div>
-                            
-                            <div className="timeline-item editable-card" data-field="timeline-3">
-                              <div className="timeline-year editable-text" contentEditable="true">2022</div>
+
+                            {/* Timeline Item 3 */}
+                            <div className="timeline-item timeline-left editable-card" data-field="timeline-3">
+                              <div className="timeline-marker">
+                                <div className="timeline-diamond"></div>
+                              </div>
                               <div className="timeline-content">
-                                <h3 className="timeline-title editable-text" contentEditable="true">Global Reach</h3>
-                                <p className="timeline-description editable-text" contentEditable="true">Reached clients worldwide with our innovative solutions.</p>
+                                <div 
+                                  className="timeline-date editable-text" 
+                                  contentEditable="true"
+                                  onBlur={(e) => handleContentChange('timeline', 'item3', { ...pageContent.timeline?.item3, date: e.target.textContent })}
+                                >
+                                  {pageContent.timeline?.item3?.date || '01 Jun, 2020'}
+                                </div>
+                                <div className="timeline-card">
+                                  <h3 
+                                    className="editable-text" 
+                                    contentEditable="true"
+                                    onBlur={(e) => handleContentChange('timeline', 'item3', { ...pageContent.timeline?.item3, title: e.target.textContent })}
+                                  >
+                                    {pageContent.timeline?.item3?.title || 'Lorem ipsum dolor'}
+                                  </h3>
+                                  <p 
+                                    className="editable-text" 
+                                    contentEditable="true"
+                                    onBlur={(e) => handleContentChange('timeline', 'item3', { ...pageContent.timeline?.item3, description: e.target.textContent })}
+                                  >
+                                    {pageContent.timeline?.item3?.description || 'Lorem ipsum dolor sit amet elit ornare velit non'}
+                                  </p>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -2347,8 +3028,29 @@ export default function Admin() {
                   <input id="edit-url" defaultValue={editingProject.url || ''} />
                 </div>
                 <div className="form-group">
-                  <label>Icon</label>
-                  <input id="edit-icon" defaultValue={editingProject.icon || '🚀'} />
+                  <label>Project Image</label>
+                  <input 
+                    id="edit-image" 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={async (e) => {
+                      const file = e.target.files[0]
+                      if (file) {
+                        const imageUrl = await uploadProjectImage(file)
+                        if (imageUrl) {
+                          document.getElementById('edit-image-url').value = imageUrl
+                        }
+                      }
+                    }}
+                  />
+                  <input id="edit-image-url" type="hidden" defaultValue={editingProject.image || ''} />
+                  {uploadingImage && <div className="upload-status">📤 Uploading...</div>}
+                  {editingProject.image && (
+                    <div className="current-image">
+                      <img src={`http://localhost:3001${editingProject.image}`} alt="Current" className="current-thumbnail" />
+                      <span>Current image</span>
+                    </div>
+                  )}
                 </div>
                 <div className="form-group">
                   <label>Completion Date *</label>
@@ -2382,6 +3084,7 @@ export default function Admin() {
                   title,
                   description,
                   icon: document.getElementById('edit-icon').value.trim() || '🚀',
+                  image: document.getElementById('edit-image-url').value.trim(),
                   manager: document.getElementById('edit-manager').value.trim(),
                   url: document.getElementById('edit-url').value.trim(),
                   date,
@@ -2391,6 +3094,197 @@ export default function Admin() {
                 await updateProject(updatedData)
               }}>
                 <span>💾</span> Update Project
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Product Modal */}
+      {showProductEditModal && editingProduct && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3>✏️ Edit Product</h3>
+              <button className="modal-close" onClick={() => { setShowProductEditModal(false); setEditingProduct(null) }}>
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="form-grid">
+                <div className="form-group">
+                  <label>Product Title *</label>
+                  <input id="edit-prod-title" defaultValue={editingProduct.title} />
+                </div>
+                <div className="form-group">
+                  <label>Price</label>
+                  <input id="edit-prod-price" defaultValue={editingProduct.price || ''} />
+                </div>
+                <div className="form-group">
+                  <label>Category</label>
+                  <select id="edit-prod-category" defaultValue={editingProduct.category || ''}>
+                    <option value="">Select Category</option>
+                    {categories.filter(cat => cat.isActive).map(category => (
+                      <option key={category._id} value={category.name}>
+                        {category.icon} {category.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Availability</label>
+                  <select id="edit-prod-availability" defaultValue={editingProduct.availability || 'In Stock'}>
+                    <option value="In Stock">In Stock</option>
+                    <option value="Out of Stock">Out of Stock</option>
+                    <option value="Pre-order">Pre-order</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Product Image</label>
+                  <input 
+                    id="edit-prod-image" 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={async (e) => {
+                      const file = e.target.files[0]
+                      if (file) {
+                        const imageUrl = await uploadProductImage(file)
+                        if (imageUrl) {
+                          document.getElementById('edit-prod-image-url').value = imageUrl
+                        }
+                      }
+                    }}
+                  />
+                  <input id="edit-prod-image-url" type="hidden" defaultValue={editingProduct.image || ''} />
+                  {uploadingProductImage && <div className="upload-status">📤 Uploading...</div>}
+                  {editingProduct.image && (
+                    <div className="current-image">
+                      <img src={`http://localhost:3001${editingProduct.image}`} alt="Current" className="current-thumbnail" />
+                      <span>Current image</span>
+                    </div>
+                  )}
+                </div>
+                <div className="form-group">
+                  <label>Icon</label>
+                  <input id="edit-prod-icon" defaultValue={editingProduct.icon || '📦'} />
+                </div>
+                <div className="form-group">
+                  <label>Rating</label>
+                  <select id="edit-prod-rating" defaultValue={editingProduct.rating || 5}>
+                    <option value="5">5 Stars</option>
+                    <option value="4">4 Stars</option>
+                    <option value="3">3 Stars</option>
+                    <option value="2">2 Stars</option>
+                    <option value="1">1 Star</option>
+                  </select>
+                </div>
+                <div className="form-group full-width">
+                  <label>Description *</label>
+                  <textarea id="edit-prod-desc" rows="3" defaultValue={editingProduct.description || ''}></textarea>
+                </div>
+                <div className="form-group full-width">
+                  <label>Features (one per line)</label>
+                  <textarea id="edit-prod-features" rows="3" defaultValue={editingProduct.features ? editingProduct.features.join('\n') : ''}></textarea>
+                </div>
+                <div className="form-group full-width">
+                  <label>Specifications</label>
+                  <textarea id="edit-prod-specifications" rows="3" defaultValue={editingProduct.specifications || ''}></textarea>
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-secondary" onClick={() => { setShowProductEditModal(false); setEditingProduct(null) }}>
+                Cancel
+              </button>
+              <button className="btn-success" onClick={async () => {
+                const title = document.getElementById('edit-prod-title').value.trim()
+                const description = document.getElementById('edit-prod-desc').value.trim()
+                
+                if (!title || !description) {
+                  alert('Please fill in Title and Description')
+                  return
+                }
+                
+                const updatedData = {
+                  title,
+                  description,
+                  price: document.getElementById('edit-prod-price').value.trim(),
+                  category: document.getElementById('edit-prod-category').value.trim(),
+                  features: document.getElementById('edit-prod-features').value.trim().split('\n').filter(f => f.trim()),
+                  specifications: document.getElementById('edit-prod-specifications').value.trim(),
+                  availability: document.getElementById('edit-prod-availability').value,
+                  icon: document.getElementById('edit-prod-icon').value.trim() || '📦',
+                  image: document.getElementById('edit-prod-image-url').value.trim(),
+                  rating: parseInt(document.getElementById('edit-prod-rating').value || '5', 10)
+                }
+                await updateProduct(updatedData)
+              }}>
+                <span>💾</span> Update Product
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Category Modal */}
+      {showCategoryEditModal && editingCategory && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3>✏️ Edit Category</h3>
+              <button className="modal-close" onClick={() => { setShowCategoryEditModal(false); setEditingCategory(null) }}>
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="form-grid">
+                <div className="form-group">
+                  <label>Category Name *</label>
+                  <input id="edit-cat-name" defaultValue={editingCategory.name} />
+                </div>
+                <div className="form-group">
+                  <label>Description</label>
+                  <input id="edit-cat-description" defaultValue={editingCategory.description || ''} />
+                </div>
+                <div className="form-group">
+                  <label>Icon</label>
+                  <input id="edit-cat-icon" defaultValue={editingCategory.icon || '📁'} />
+                </div>
+                <div className="form-group">
+                  <label>Color</label>
+                  <input id="edit-cat-color" type="color" defaultValue={editingCategory.color || '#3B82F6'} />
+                </div>
+                <div className="form-group">
+                  <label>Status</label>
+                  <select id="edit-cat-status" defaultValue={editingCategory.isActive ? 'active' : 'inactive'}>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-secondary" onClick={() => { setShowCategoryEditModal(false); setEditingCategory(null) }}>
+                Cancel
+              </button>
+              <button className="btn-success" onClick={async () => {
+                const name = document.getElementById('edit-cat-name').value.trim()
+                
+                if (!name) {
+                  alert('Please fill in Category Name')
+                  return
+                }
+                
+                const updatedData = {
+                  name,
+                  description: document.getElementById('edit-cat-description').value.trim(),
+                  icon: document.getElementById('edit-cat-icon').value.trim() || '📁',
+                  color: document.getElementById('edit-cat-color').value,
+                  isActive: document.getElementById('edit-cat-status').value === 'active'
+                }
+                await updateCategory(updatedData)
+              }}>
+                <span>💾</span> Update Category
               </button>
             </div>
           </div>

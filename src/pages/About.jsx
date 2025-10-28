@@ -8,35 +8,21 @@ export default function About() {
   const aboutSection = aboutPage.content || {}
   const [activeTimeline, setActiveTimeline] = useState(0)
 
+  const timelineSection = aboutPage.timeline || {}
   const timelineData = [
-    {
-      year: "Now",
+    timelineSection.item1 || {
       date: "01 Jun, 2021",
       title: "Lorem ipsum dolor",
       description: "Lorem ipsum dolor sit amet elit ornare velit non"
     },
-    {
-      year: "2021",
+    timelineSection.item2 || {
       date: "01 Jan, 2021", 
       title: "Lorem ipsum dolor",
       description: "Lorem ipsum dolor sit amet elit ornare velit non"
     },
-    {
-      year: "2020",
+    timelineSection.item3 || {
       date: "01 Jun, 2020",
       title: "Lorem ipsum dolor", 
-      description: "Lorem ipsum dolor sit amet elit ornare velit non"
-    },
-    {
-      year: "2019",
-      date: "01 Jan, 2019",
-      title: "Lorem ipsum dolor",
-      description: "Lorem ipsum dolor sit amet elit ornare velit non"
-    },
-    {
-      year: "2018",
-      date: "01 Jun, 2018",
-      title: "Lorem ipsum dolor",
       description: "Lorem ipsum dolor sit amet elit ornare velit non"
     }
   ]
@@ -83,10 +69,14 @@ export default function About() {
               <p className="about-description">{aboutSection.description || 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.'}</p>
             </div>
             <div className="about-image">
-              <div className="image-placeholder">
-                <div className="professional-image">
-                  <div className="person-icon">👨‍💼</div>
-                  <div className="office-background"></div>
+              <div className="company-logo-animated">
+                <div className="logo-container">
+                  <div className="logo-front">
+                    <img src="/logo.png" alt="Company Logo" className="logo-image" />
+                  </div>
+                  <div className="logo-back">
+                    <img src="/logo2.png" alt="Company Logo" className="logo-image" />
+                  </div>
                 </div>
               </div>
             </div>
@@ -127,8 +117,8 @@ export default function About() {
       <section className="our-story">
         <div className="container">
           <div className="story-header">
-            <span className="story-subtitle">OUR STORY</span>
-            <h2 className="story-title">10 Years of Our Journey to Help Your Business</h2>
+            <span className="story-subtitle">{timelineSection.subtitle || 'OUR STORY'}</span>
+            <h2 className="story-title">{timelineSection.title || '10 Years of Our Journey to Help Your Business'}</h2>
             <div className="story-underline"></div>
           </div>
 

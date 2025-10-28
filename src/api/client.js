@@ -117,6 +117,64 @@ export const projectItemsAPI = {
   }
 }
 
+// Product Items API
+export const productItemsAPI = {
+  async list() {
+    return await apiCall('/product-items')
+  },
+
+  async create(item) {
+    return await apiCall('/product-items', {
+      method: 'POST',
+      body: JSON.stringify(item)
+    })
+  },
+
+  async update(id, item) {
+    return await apiCall(`/product-items/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(item)
+    })
+  },
+
+  async delete(id) {
+    return await apiCall(`/product-items/${id}`, {
+      method: 'DELETE'
+    })
+  }
+}
+
+// Categories API
+export const categoriesAPI = {
+  async list() {
+    return await apiCall('/categories')
+  },
+
+  async listAll() {
+    return await apiCall('/categories/all')
+  },
+
+  async create(category) {
+    return await apiCall('/categories', {
+      method: 'POST',
+      body: JSON.stringify(category)
+    })
+  },
+
+  async update(id, category) {
+    return await apiCall(`/categories/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(category)
+    })
+  },
+
+  async delete(id) {
+    return await apiCall(`/categories/${id}`, {
+      method: 'DELETE'
+    })
+  }
+}
+
 // Image Upload API
 export const imageUploadAPI = {
   async upload(file) {
@@ -151,5 +209,7 @@ export default {
   pageContentAPI,
   imageUploadAPI,
   healthCheck,
-  projectItemsAPI
+  projectItemsAPI,
+  productItemsAPI,
+  categoriesAPI
 }
