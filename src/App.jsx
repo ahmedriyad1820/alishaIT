@@ -12,7 +12,6 @@ import Testimonials from './components/Testimonials'
 import LatestBlog from './components/LatestBlog'
 import TeamMembers from './components/TeamMembers'
 import RequestQuote from './components/RequestQuote'
-import Contact from './components/Contact'
 import Footer from './components/Footer'
 import AboutPage from './pages/About'
 import ServicesPage from './pages/Services'
@@ -20,6 +19,7 @@ import ProjectPage from './pages/Project'
 import BlogDetailsPage from './pages/BlogDetails'
 import ContactPage from './pages/Contact'
 import ProductPage from './pages/Product'
+import BlogPage from './pages/Blog'
 import AdminPage from './pages/Admin'
 
 export default function App() {
@@ -60,10 +60,12 @@ export default function App() {
   }, [])
 
   const handleNavigation = (page) => {
-    setCurrentPage(page)
-    // Update URL without page reload
-    const newPath = page === 'home' ? '/' : `/${page}`
-    window.history.pushState({}, '', newPath)
+    // Update URL without page reload (preserve query string if present in page)
+    const [base, query] = page.split('?')
+    setCurrentPage(base)
+    const newPath = base === 'home' ? '/' : `/${base}`
+    const newURL = query ? `${newPath}?${query}` : newPath
+    window.history.pushState({}, '', newURL)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -81,6 +83,8 @@ export default function App() {
         return <ContactPage />
       case 'product':
         return <ProductPage />
+      case 'blog':
+        return <BlogPage onNavigate={handleNavigation} />
       case 'admin':
         return <AdminPage />
       case 'home':
@@ -98,7 +102,6 @@ export default function App() {
             <RequestQuote />
             <Testimonials />
             <LatestBlog onNavigate={handleNavigation} />
-            <Contact />
           </main>
         )
     }

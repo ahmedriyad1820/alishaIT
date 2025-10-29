@@ -1,124 +1,111 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { blogAPI } from '../api/client.js'
 
 export default function BlogDetails() {
-  const [searchKeyword, setSearchKeyword] = useState('')
+  const [blog, setBlog] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
-  const categories = [
-    "Web Design",
-    "Web Development", 
-    "Keyword Research",
-    "Email Marketing"
-  ]
-
-  const recentPosts = [
-    {
-      image: "👥",
-      title: "Lorem ipsum dolor sit amet adipis elit."
-    },
-    {
-      image: "👥",
-      title: "Lorem ipsum dolor sit amet adipis elit."
-    },
-    {
-      image: "👥",
-      title: "Lorem ipsum dolor sit amet adipis elit."
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const slug = params.get('slug')
+    if (!slug) {
+      setError('No blog selected')
+      setLoading(false)
+      return
     }
-  ]
+    ;(async () => {
+      try {
+        const res = await blogAPI.getBySlug(slug)
+        if (res.success) {
+          setBlog(res.data)
+        } else {
+          setError(res.error || 'Failed to load blog')
+        }
+      } catch (e) {
+        setError('Network error')
+      } finally {
+        setLoading(false)
+      }
+    })()
+  }, [])
 
-  const handleSearch = (e) => {
-    e.preventDefault()
-    console.log('Searching for:', searchKeyword)
+  const formatDate = (dateString) => {
+    if (!dateString) return ''
+    const d = new Date(dateString)
+    return d.toLocaleDateString()
+  }
+
+  if (loading) {
+    return (
+      <div className="blog-details-page">
+        <section className="blog-hero"><div className="hero-overlay"></div><div className="hero-content"><h1 className="hero-title">Loading...</h1></div></section>
+      </div>
+    )
+  }
+
+  if (error || !blog) {
+    return (
+      <div className="blog-details-page">
+        <section className="blog-hero"><div className="hero-overlay"></div><div className="hero-content"><h1 className="hero-title">Blog not found</h1></div></section>
+      </div>
+    )
   }
 
   return (
     <div className="blog-details-page">
-      {/* Blog Details Hero Section */}
       <section className="blog-hero">
         <div className="hero-overlay"></div>
         <div className="hero-content">
-          <h1 className="hero-title">Blog Details</h1>
+          <h1 className="hero-title">{blog.title}</h1>
+          <div style={{ marginTop: 8 }}>{blog.author || 'Admin'} • {formatDate(blog.publishedAt || blog.createdAt)} • {blog.category || ''}</div>
         </div>
       </section>
 
-      {/* Blog Details Content */}
       <section className="blog-details-content">
         <div className="container">
           <div className="blog-layout">
             <div className="main-content">
-              <div className="blog-image">
-                <div className="image-placeholder">
-                  <div className="business-meeting">
-                    <div className="person-1">👨‍💼</div>
-                    <div className="person-2">👩‍💼</div>
-                    <div className="handshake">🤝</div>
-                    <div className="table">📋</div>
-                    <div className="document">📊</div>
-                    <div className="phone">📱</div>
-                  </div>
-                  <div className="office-background"></div>
-                </div>
+              <div 
+                className="blog-image"
+                style={{
+                  width: '100%',
+                  borderRadius: 12,
+                  background: '#0b1220',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  overflow: 'hidden',
+                  maxHeight: '70vh'
+                }}
+              >
+                {blog.coverImage ? (
+                  <img 
+                    src={`http://localhost:3001${blog.coverImage}`} 
+                    alt={blog.title} 
+                    style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} 
+                  />
+                ) : (
+                  <div className="image-placeholder"><div className="blog-icon">📝</div><div className="image-background"></div></div>
+                )}
               </div>
 
               <div className="blog-info">
-                <h2 className="blog-title">Diam dolor est labore duo ipsum clita sed et lorem tempor duo</h2>
-                <p className="blog-description">
-                  Sadipscing labore amet rebum est et justo gubergren. Et eirmod voluptua at voluptua sit amet, lorem at sit diam voluptua. Dolores et duo stet lorem sed diam stet. Diam duo stet lorem sed diam stet. Et eirmod voluptua at voluptua sit amet, lorem at sit diam voluptua. Dolores et duo stet lorem sed diam stet.
-                </p>
-                <p className="blog-description">
-                  Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
-                </p>
-                <p className="blog-description">
-                  Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
-                </p>
+                {blog.excerpt && <p className="blog-description">{blog.excerpt}</p>}
+                <p className="blog-description" style={{ whiteSpace: 'pre-line' }}>{blog.content}</p>
               </div>
             </div>
 
             <div className="sidebar">
-              <div className="search-section">
-                <form className="search-form" onSubmit={handleSearch}>
-                  <input
-                    type="text"
-                    placeholder="Keyword"
-                    value={searchKeyword}
-                    onChange={(e) => setSearchKeyword(e.target.value)}
-                    className="search-input"
-                  />
-                  <button type="submit" className="search-btn">
-                    🔍
-                  </button>
-                </form>
-              </div>
-
               <div className="categories-section">
-                <h3 className="sidebar-title">Categories</h3>
+                <h3 className="sidebar-title">Category</h3>
                 <div className="sidebar-underline"></div>
                 <ul className="categories-list">
-                  {categories.map((category, index) => (
-                    <li key={index} className="category-item">
-                      <span className="category-arrow">→</span>
-                      <span className="category-name">{category}</span>
-                    </li>
-                  ))}
+                  <li className="category-item">
+                    <span className="category-arrow">→</span>
+                    <span className="category-name">{blog.category || 'General'}</span>
+                  </li>
                 </ul>
-              </div>
-
-              <div className="recent-posts-section">
-                <h3 className="sidebar-title">Recent Post</h3>
-                <div className="sidebar-underline"></div>
-                <div className="recent-posts-list">
-                  {recentPosts.map((post, index) => (
-                    <div key={index} className="recent-post-item">
-                      <div className="post-thumbnail">
-                        <div className="thumbnail-image">
-                          <span className="thumbnail-icon">{post.image}</span>
-                        </div>
-                      </div>
-                      <div className="post-content">
-                        <h4 className="post-title">{post.title}</h4>
-                      </div>
-                    </div>
-                  ))}
-                </div>
               </div>
             </div>
           </div>

@@ -25,11 +25,29 @@ const PORT = process.env.PORT || 3001
 
 // Middleware
 app.use(cors({
-  origin: (origin, cb) => cb(null, true),
-  credentials: true
+  origin: ['http://localhost:5173', 'http://localhost:5174'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }))
 app.use(express.json())
 app.use('/uploads', express.static(uploadsDir))
+
+// Generic OPTIONS handler for Express v5 (preflight)
+app.use((req, res, next) => {
+  if (req.method === 'OPTIONS') {
+    const origin = req.headers.origin
+    if (origin && ['http://localhost:5173', 'http://localhost:5174'].includes(origin)) {
+      res.header('Access-Control-Allow-Origin', origin)
+      res.header('Vary', 'Origin')
+      res.header('Access-Control-Allow-Credentials', 'true')
+    }
+    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+    return res.sendStatus(204)
+  }
+  next()
+})
 
 // Session setup
 const sessionSecret = process.env.SESSION_SECRET || 'change_this_secret'
@@ -214,6 +232,64 @@ const sliderConfigSchema = new mongoose.Schema({
 const SliderItem = mongoose.model('SliderItem', sliderItemSchema)
 const SliderConfig = mongoose.model('SliderConfig', sliderConfigSchema)
 
+// Team member schema
+const teamMemberSchema = new mongoose.Schema({
+  name: { type: String, required: true, trim: true },
+  designation: { type: String, required: true, trim: true },
+  photo: { type: String, trim: true },
+  bio: { type: String, trim: true },
+  isActive: { type: Boolean, default: true },
+  order: { type: Number, default: 0 },
+  socials: {
+    facebook: { type: String, trim: true },
+    twitter: { type: String, trim: true },
+    linkedin: { type: String, trim: true }
+  },
+  createdAt: { type: Date, default: Date.now }
+})
+
+const TeamMember = mongoose.model('TeamMember', teamMemberSchema)
+
+// Blog schema
+const blogSchema = new mongoose.Schema({
+  title: { type: String, required: true, trim: true },
+  slug: { type: String, required: true, unique: true, trim: true },
+  excerpt: { type: String, trim: true },
+  content: { type: String, required: true },
+  coverImage: { type: String, trim: true },
+  category: { type: String, trim: true },
+  author: { type: String, trim: true, default: 'Admin' },
+  isPublished: { type: Boolean, default: false },
+  order: { type: Number, default: 0 },
+  publishedAt: { type: Date },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
+})
+
+// Text index across main text fields. Exclude tags to avoid array-text index issues
+blogSchema.index({ title: 'text', excerpt: 'text', content: 'text' })
+
+const Blog = mongoose.model('Blog', blogSchema)
+
+// Ensure blog indexes don't include legacy 'tags' text index
+const ensureBlogIndexes = async () => {
+  try {
+    await mongoose.connection.asPromise()
+    const indexes = await Blog.collection.indexes().catch(() => [])
+    // Drop ANY existing text index variants (including legacy with tags)
+    for (const idx of indexes) {
+      const isText = idx.key && Object.values(idx.key).some(v => v === 'text')
+      if (isText && idx.name) {
+        try { await Blog.collection.dropIndex(idx.name) } catch (_) {}
+      }
+    }
+    // Recreate the correct text index
+    await Blog.collection.createIndex({ title: 'text', excerpt: 'text', content: 'text' })
+  } catch (e) {
+    console.warn('Index maintenance warning for Blog:', e?.message)
+  }
+}
+
 // Initialize default admin
 const initializeAdmin = async () => {
   try {
@@ -244,6 +320,8 @@ const initializeAdmin = async () => {
 mongoose.connection.on('connected', () => {
   console.log('🔄 Initializing admin user...')
   initializeAdmin()
+  // Maintain blog indexes (drop legacy tags text index if present)
+  ensureBlogIndexes()
 })
 
 // Routes
@@ -686,6 +764,155 @@ app.get('/api/pages/:pageName', async (req, res) => {
     res.json({ success: true, data: pageContent })
   } catch (error) {
     res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+// Blog routes
+// Public list: supports ?published=true
+app.get('/api/blogs', async (req, res) => {
+  try {
+    const publishedOnly = req.query.published === 'true'
+    const query = publishedOnly ? { isPublished: true } : {}
+    const blogs = await Blog.find(query).sort({ order: 1, publishedAt: -1, createdAt: -1 })
+    res.json({ success: true, data: blogs })
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+// Get a single blog by slug (public)
+app.get('/api/blogs/slug/:slug', async (req, res) => {
+  try {
+    const { slug } = req.params
+    const normalized = String(slug).trim().toLowerCase()
+    const blog = await Blog.findOne({ slug: normalized })
+    if (!blog) return res.status(404).json({ success: false, error: 'Blog not found' })
+    res.json({ success: true, data: blog })
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+// Create blog (admin)
+app.post('/api/blogs', requireAdmin, async (req, res) => {
+  try {
+    const { title, slug, content } = req.body
+    // sanitize legacy field if sent
+    if ('tags' in req.body) delete req.body.tags
+    if (!title || !slug || !content) {
+      return res.status(400).json({ success: false, error: 'title, slug and content are required' })
+    }
+    const normalizedSlug = String(slug).trim().toLowerCase()
+    const exists = await Blog.findOne({ slug: normalizedSlug })
+    if (exists) return res.status(400).json({ success: false, error: 'slug already exists' })
+    // Allowlist fields only
+    const payload = {
+      title: req.body.title,
+      slug: normalizedSlug,
+      excerpt: req.body.excerpt,
+      content: req.body.content,
+      coverImage: req.body.coverImage,
+      category: req.body.category,
+      author: req.body.author,
+      isPublished: !!req.body.isPublished,
+      order: typeof req.body.order === 'number' ? req.body.order : Number(req.body.order) || 0,
+      publishedAt: req.body.isPublished ? new Date() : undefined
+    }
+    const blog = await Blog.create(payload)
+    res.json({ success: true, data: blog })
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message })
+  }
+})
+
+// Update blog (admin)
+app.put('/api/blogs/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params
+    // sanitize legacy field if sent
+    if ('tags' in req.body) delete req.body.tags
+    // Allowlist fields only
+    const update = {
+      title: req.body.title,
+      slug: typeof req.body.slug === 'string' ? req.body.slug.trim().toLowerCase() : undefined,
+      excerpt: req.body.excerpt,
+      content: req.body.content,
+      coverImage: req.body.coverImage,
+      category: req.body.category,
+      author: req.body.author,
+      isPublished: req.body.isPublished,
+      order: typeof req.body.order === 'number' ? req.body.order : Number(req.body.order) || 0,
+      publishedAt: req.body.isPublished ? (req.body.publishedAt ? new Date(req.body.publishedAt) : new Date()) : undefined,
+      updatedAt: new Date()
+    }
+    if (update.isPublished && !update.publishedAt) update.publishedAt = new Date()
+    const blog = await Blog.findByIdAndUpdate(id, update, { new: true })
+    if (!blog) return res.status(404).json({ success: false, error: 'Blog not found' })
+    res.json({ success: true, data: blog })
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message })
+  }
+})
+
+// Delete blog (admin)
+app.delete('/api/blogs/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params
+    const blog = await Blog.findByIdAndDelete(id)
+    if (!blog) return res.status(404).json({ success: false, error: 'Blog not found' })
+    res.json({ success: true, message: 'Blog deleted successfully' })
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message })
+  }
+})
+// Team Members - public list (supports ?active=true for only public members)
+app.get('/api/team-members', async (req, res) => {
+  try {
+    const activeOnly = req.query.active === 'true'
+    const query = activeOnly ? { isActive: true } : {}
+    const members = await TeamMember.find(query).sort({ order: 1, createdAt: -1 })
+    res.json({ success: true, data: members })
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+// Team Members - create
+app.post('/api/team-members', requireAdmin, async (req, res) => {
+  try {
+    const { name, designation, photo, bio, isActive = true, order = 0, socials = {} } = req.body
+    if (!name || !designation) {
+      return res.status(400).json({ success: false, error: 'name and designation are required' })
+    }
+    const member = await TeamMember.create({ name, designation, photo, bio, isActive, order, socials })
+    res.json({ success: true, data: member })
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message })
+  }
+})
+
+// Team Members - update
+app.put('/api/team-members/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params
+    const update = req.body
+    const member = await TeamMember.findByIdAndUpdate(id, update, { new: true })
+    if (!member) return res.status(404).json({ success: false, error: 'Team member not found' })
+    res.json({ success: true, data: member })
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message })
+  }
+})
+
+// Team Members - delete
+app.delete('/api/team-members/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params
+    const member = await TeamMember.findByIdAndDelete(id)
+    if (!member) return res.status(404).json({ success: false, error: 'Team member not found' })
+    res.json({ success: true, message: 'Team member deleted successfully' })
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message })
   }
 })
 

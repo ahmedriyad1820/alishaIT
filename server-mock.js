@@ -7,10 +7,28 @@ const PORT = process.env.PORT || 3001
 
 // Middleware
 app.use(cors({
-  origin: (origin, cb) => cb(null, true),
-  credentials: true
+  origin: ['http://localhost:5173', 'http://localhost:5174'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }))
 app.use(express.json())
+
+// Generic OPTIONS handler for Express v5 (preflight)
+app.use((req, res, next) => {
+  if (req.method === 'OPTIONS') {
+    const origin = req.headers.origin
+    if (origin && ['http://localhost:5173', 'http://localhost:5174'].includes(origin)) {
+      res.header('Access-Control-Allow-Origin', origin)
+      res.header('Vary', 'Origin')
+      res.header('Access-Control-Allow-Credentials', 'true')
+    }
+    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+    return res.sendStatus(204)
+  }
+  next()
+})
 
 // Sessions
 const sessionSecret = process.env.SESSION_SECRET || 'change_this_secret'
@@ -33,7 +51,9 @@ let mockData = {
   quotes: [],
   orders: [],
   admins: [{ username: 'Dracula', password: 'Admin', role: 'admin' }],
-  pageContent: {}
+  pageContent: {},
+  teamMembers: [],
+  blogs: []
 }
 
 // Routes
@@ -174,6 +194,105 @@ app.get('/api/admin/stats', requireAdmin, async (req, res) => {
   }
 })
 
+// Blog routes (mock)
+// Public list: supports ?published=true
+app.get('/api/blogs', async (req, res) => {
+  try {
+    const publishedOnly = req.query.published === 'true'
+    const list = publishedOnly ? mockData.blogs.filter(b => !!b.isPublished) : mockData.blogs
+    // sort by order asc, then publishedAt desc, then createdAt desc
+    const sorted = [...list].sort((a, b) => {
+      const orderDiff = (a.order || 0) - (b.order || 0)
+      if (orderDiff !== 0) return orderDiff
+      const aPub = a.publishedAt ? new Date(a.publishedAt).getTime() : 0
+      const bPub = b.publishedAt ? new Date(b.publishedAt).getTime() : 0
+      if (bPub !== aPub) return bPub - aPub
+      const aC = a.createdAt ? new Date(a.createdAt).getTime() : 0
+      const bC = b.createdAt ? new Date(b.createdAt).getTime() : 0
+      return bC - aC
+    })
+    res.json({ success: true, data: sorted })
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+// Get a single blog by slug (public, mock)
+app.get('/api/blogs/slug/:slug', async (req, res) => {
+  try {
+    const { slug } = req.params
+    const blog = mockData.blogs.find(b => b.slug === slug)
+    if (!blog) return res.status(404).json({ success: false, error: 'Blog not found' })
+    res.json({ success: true, data: blog })
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+// Create blog (admin)
+app.post('/api/blogs', requireAdmin, async (req, res) => {
+  try {
+    const { title, slug, content } = req.body
+    if (!title || !slug || !content) {
+      return res.status(400).json({ success: false, error: 'title, slug and content are required' })
+    }
+    const exists = mockData.blogs.find(b => b.slug === slug)
+    if (exists) return res.status(400).json({ success: false, error: 'slug already exists' })
+
+    const now = new Date()
+    const blog = {
+      _id: Date.now().toString(),
+      title,
+      slug,
+      excerpt: req.body.excerpt || '',
+      content,
+      coverImage: req.body.coverImage || '',
+      category: req.body.category || '',
+      
+      author: req.body.author || 'Admin',
+      isPublished: !!req.body.isPublished,
+      order: Number.isFinite(req.body.order) ? req.body.order : 0,
+      publishedAt: req.body.isPublished ? now : undefined,
+      createdAt: now,
+      updatedAt: now
+    }
+    mockData.blogs.push(blog)
+    res.json({ success: true, data: blog })
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message })
+  }
+})
+
+// Update blog (admin)
+app.put('/api/blogs/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params
+    const idx = mockData.blogs.findIndex(b => b._id === id)
+    if (idx === -1) return res.status(404).json({ success: false, error: 'Blog not found' })
+
+    const current = mockData.blogs[idx]
+    const next = { ...current, ...req.body, updatedAt: new Date() }
+    if (next.isPublished && !next.publishedAt) next.publishedAt = new Date()
+    mockData.blogs[idx] = next
+    res.json({ success: true, data: mockData.blogs[idx] })
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message })
+  }
+})
+
+// Delete blog (admin)
+app.delete('/api/blogs/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params
+    const before = mockData.blogs.length
+    mockData.blogs = mockData.blogs.filter(b => b._id !== id)
+    if (mockData.blogs.length === before) return res.status(404).json({ success: false, error: 'Blog not found' })
+    res.json({ success: true, message: 'Blog deleted successfully' })
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message })
+  }
+})
+
 // Page Content routes
 app.get('/api/pages/:pageName', async (req, res) => {
   try {
@@ -199,6 +318,53 @@ app.get('/api/pages/:pageName', async (req, res) => {
   }
 })
 
+// Team Members routes (mock)
+app.get('/api/team-members', async (req, res) => {
+  try {
+    const activeOnly = req.query.active === 'true'
+    const list = activeOnly ? mockData.teamMembers.filter(m => !!m.isActive) : mockData.teamMembers
+    const sorted = [...list].sort((a, b) => (a.order || 0) - (b.order || 0))
+    res.json({ success: true, data: sorted })
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+app.post('/api/team-members', requireAdmin, async (req, res) => {
+  try {
+    const { name, designation } = req.body
+    if (!name || !designation) return res.status(400).json({ success: false, error: 'name and designation are required' })
+    const member = { _id: Date.now().toString(), createdAt: new Date(), ...req.body }
+    mockData.teamMembers.push(member)
+    res.json({ success: true, data: member })
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message })
+  }
+})
+
+app.put('/api/team-members/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params
+    const idx = mockData.teamMembers.findIndex(m => m._id === id)
+    if (idx === -1) return res.status(404).json({ success: false, error: 'Team member not found' })
+    mockData.teamMembers[idx] = { ...mockData.teamMembers[idx], ...req.body }
+    res.json({ success: true, data: mockData.teamMembers[idx] })
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message })
+  }
+})
+
+app.delete('/api/team-members/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params
+    const before = mockData.teamMembers.length
+    mockData.teamMembers = mockData.teamMembers.filter(m => m._id !== id)
+    if (mockData.teamMembers.length === before) return res.status(404).json({ success: false, error: 'Team member not found' })
+    res.json({ success: true, message: 'Team member deleted successfully' })
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message })
+  }
+})
 app.post('/api/pages/:pageName', async (req, res) => {
   try {
     const { pageName } = req.params

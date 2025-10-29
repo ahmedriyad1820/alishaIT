@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import AdminLogin from '../components/AdminLogin'
-import { contactAPI, quoteAPI, orderAPI, adminAPI, pageContentAPI, imageUploadAPI, projectItemsAPI, productItemsAPI, categoriesAPI, slidersAPI, sliderConfigAPI } from '../api/client.js'
+import { contactAPI, quoteAPI, orderAPI, adminAPI, pageContentAPI, imageUploadAPI, projectItemsAPI, productItemsAPI, categoriesAPI, slidersAPI, sliderConfigAPI, teamMembersAPI, blogAPI } from '../api/client.js'
 
 export default function Admin() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -31,6 +31,15 @@ export default function Admin() {
   const [editingCategory, setEditingCategory] = useState(null)
   const [showCategoryEditModal, setShowCategoryEditModal] = useState(false)
 
+  // Team management state
+  const [teamMembers, setTeamMembers] = useState([])
+  const [newTeam, setNewTeam] = useState({ name: '', designation: '', photo: '', bio: '', isActive: true, order: 0, socials: { facebook: '', twitter: '', linkedin: '' } })
+  const [uploadingTeamPhoto, setUploadingTeamPhoto] = useState(false)
+  const [editingTeamId, setEditingTeamId] = useState(null)
+  const [teamQuery, setTeamQuery] = useState('')
+
+  
+
   // Slider management state
   const [sliders, setSliders] = useState([])
   const [sliderIntervalMs, setSliderIntervalMs] = useState(30000)
@@ -41,6 +50,12 @@ export default function Admin() {
   const [editingPage, setEditingPage] = useState(null)
   const [publishStatus, setPublishStatus] = useState('')
   const [isPublishing, setIsPublishing] = useState(false)
+
+  // Blog management state
+  const [blogs, setBlogs] = useState([])
+  const [editingBlog, setEditingBlog] = useState(null)
+  const [showBlogEditModal, setShowBlogEditModal] = useState(false)
+  const [uploadingBlogImage, setUploadingBlogImage] = useState(false)
 
   // Check if user is already authenticated (via session cookie)
   useEffect(() => {
@@ -206,6 +221,82 @@ export default function Admin() {
       setUploadingImage(false)
     }
   }
+
+  // Team helpers
+  const loadTeam = async () => {
+    try {
+      const res = await teamMembersAPI.list(false)
+      if (res.success) setTeamMembers(res.data)
+    } catch (e) { console.error('Load team failed', e) }
+  }
+
+  const uploadTeamImage = async (file) => {
+    try {
+      setUploadingTeamPhoto(true)
+      const result = await imageUploadAPI.upload(file)
+      if (result.success) return result.data.url
+      throw new Error(result.error || 'Upload failed')
+    } catch (e) {
+      alert('Failed to upload image: ' + e.message)
+      return ''
+    } finally {
+      setUploadingTeamPhoto(false)
+    }
+  }
+
+  const createTeamMember = async () => {
+    if (!newTeam.name || !newTeam.designation) {
+      alert('Name and designation are required')
+      return
+    }
+    const payload = { ...newTeam, order: Number(newTeam.order) || 0 }
+    if (editingTeamId) {
+      const res = await teamMembersAPI.update(editingTeamId, payload)
+      if (!res.success) return alert(res.error || 'Failed to update team member')
+    } else {
+      const res = await teamMembersAPI.create(payload)
+      if (!res.success) return alert(res.error || 'Failed to create team member')
+    }
+    setNewTeam({ name: '', designation: '', photo: '', bio: '', isActive: true, order: 0, socials: { facebook: '', twitter: '', linkedin: '' } })
+    setEditingTeamId(null)
+    await loadTeam()
+  }
+
+  const toggleTeamActive = async (member) => {
+    const res = await teamMembersAPI.update(member._id, { isActive: !member.isActive })
+    if (res.success) await loadTeam()
+  }
+
+  const changeOrder = async (member, delta) => {
+    const newOrder = (member.order || 0) + delta
+    const res = await teamMembersAPI.update(member._id, { order: newOrder })
+    if (res.success) await loadTeam()
+  }
+
+  const deleteTeamMember = async (id) => {
+    if (!confirm('Delete this team member?')) return
+    const res = await teamMembersAPI.delete(id)
+    if (res.success) await loadTeam()
+  }
+
+  const startEditTeam = (m) => {
+    setEditingTeamId(m._id)
+    setNewTeam({
+      name: m.name || '',
+      designation: m.designation || '',
+      photo: m.photo || '',
+      bio: m.bio || '',
+      isActive: !!m.isActive,
+      order: m.order || 0,
+      socials: {
+        facebook: m.socials?.facebook || '',
+        twitter: m.socials?.twitter || '',
+        linkedin: m.socials?.linkedin || ''
+      }
+    })
+  }
+
+  // Blogs management was removed per requirements
 
   const updateProject = async (updatedData) => {
     try {
@@ -596,6 +687,115 @@ export default function Admin() {
     }
   }
 
+  // Blog management functions
+  const loadBlogs = async () => {
+    try {
+      const res = await blogAPI.list(false)
+      if (res.success) setBlogs(res.data || [])
+    } catch (e) { 
+      console.error('Load blogs failed', e)
+      setBlogs([])
+    }
+  }
+
+  const deleteBlog = async (id) => {
+    if (!confirm('Are you sure you want to delete this blog?')) return
+    
+    try {
+      const res = await blogAPI.delete(id)
+      if (res.success) {
+        await loadBlogs()
+        setPublishStatus('deleted')
+        setTimeout(() => setPublishStatus(''), 2000)
+      } else {
+        setPublishStatus('error')
+        setTimeout(() => setPublishStatus(''), 2000)
+      }
+    } catch (e) {
+      setPublishStatus('error')
+      console.error('Error deleting blog:', e)
+      setTimeout(() => setPublishStatus(''), 2000)
+    }
+  }
+
+  const editBlog = (blog) => {
+    setEditingBlog(blog)
+    setShowBlogEditModal(true)
+  }
+
+  const uploadBlogImage = async (file) => {
+    try {
+      setUploadingBlogImage(true)
+      const result = await imageUploadAPI.upload(file)
+      if (result.success) return result.data.url
+      throw new Error(result.error || 'Upload failed')
+    } catch (e) {
+      alert('Failed to upload image: ' + e.message)
+      return ''
+    } finally {
+      setUploadingBlogImage(false)
+    }
+  }
+
+  const createBlog = async (blogData) => {
+    try {
+      const res = await blogAPI.create(blogData)
+      if (res.success) {
+        await loadBlogs()
+        setPublishStatus('saved')
+        setTimeout(() => setPublishStatus(''), 2000)
+        // Clear form
+        document.getElementById('blog-title').value = ''
+        document.getElementById('blog-excerpt').value = ''
+        document.getElementById('blog-content').value = ''
+        document.getElementById('blog-category').value = ''
+        document.getElementById('blog-author').value = ''
+        
+        document.getElementById('blog-image').value = ''
+        document.getElementById('blog-image-url').value = ''
+        document.getElementById('blog-published').checked = false
+        document.getElementById('blog-order').value = '0'
+      } else {
+        setPublishStatus('error')
+        alert('Failed to create blog: ' + (res.error || 'Unknown error'))
+      }
+    } catch (e) {
+      setPublishStatus('error')
+      console.error('Error creating blog:', e)
+      alert('Error creating blog: ' + e.message)
+    }
+  }
+
+  const updateBlog = async (id, blogData) => {
+    try {
+      const res = await blogAPI.update(id, blogData)
+      if (res.success) {
+        await loadBlogs()
+        setPublishStatus('updated')
+        setTimeout(() => setPublishStatus(''), 2000)
+        setShowBlogEditModal(false)
+        setEditingBlog(null)
+      } else {
+        setPublishStatus('error')
+        alert('Failed to update blog: ' + (res.error || 'Unknown error'))
+      }
+    } catch (e) {
+      setPublishStatus('error')
+      console.error('Error updating blog:', e)
+      alert('Error updating blog: ' + e.message)
+    }
+  }
+
+  // Helper function to generate slug from title
+  const generateSlug = (title) => {
+    return title
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/[\s_-]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+  }
+
   const createSlider = async () => {
     try {
       const title = document.getElementById('slider-title').value.trim()
@@ -831,11 +1031,25 @@ export default function Admin() {
                   <span className="sidebar-text">Categories</span>
                 </button>
                 <button 
+                  className={`sidebar-item ${activeTab === 'team' ? 'active' : ''}`}
+                  onClick={() => { setActiveTab('team'); loadTeam() }}
+                >
+                  <span className="sidebar-icon">👥</span>
+                  <span className="sidebar-text">Team</span>
+                </button>
+                <button 
                   className={`sidebar-item ${activeTab === 'sliders' ? 'active' : ''}`}
                   onClick={() => { setActiveTab('sliders'); loadSliders(); loadSliderConfig(); }}
                 >
                   <span className="sidebar-icon">🖼️</span>
                   <span className="sidebar-text">Sliders</span>
+                </button>
+                <button 
+                  className={`sidebar-item ${activeTab === 'blogs' ? 'active' : ''}`}
+                  onClick={() => { setActiveTab('blogs'); loadBlogs(); }}
+                >
+                  <span className="sidebar-icon">📝</span>
+                  <span className="sidebar-text">Blogs</span>
                 </button>
                 <button 
                   className={`sidebar-item ${activeTab === 'pages' ? 'active' : ''}`}
@@ -844,6 +1058,7 @@ export default function Admin() {
                   <span className="sidebar-icon">📄</span>
                   <span className="sidebar-text">Pages</span>
                 </button>
+                {null}
               </nav>
               <div className="sidebar-footer">
                 <button className="logout-btn" onClick={handleLogout}>
@@ -935,6 +1150,126 @@ export default function Admin() {
                         <span className="action-icon">📧</span>
                         Send Email
                       </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {null}
+
+            {activeTab === 'team' && (
+              <div className="team-admin">
+                <div className="section-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+                  <h2>Team Management</h2>
+                  <div className="section-sub" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <input
+                      type="text"
+                      placeholder="Search team..."
+                      value={teamQuery}
+                      onChange={(e) => setTeamQuery(e.target.value)}
+                      style={{ padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: 8 }}
+                    />
+                    <span>Total: {teamMembers.length}</span>
+                    {editingTeamId && <button className="secondary-btn" onClick={() => { setEditingTeamId(null); setNewTeam({ name: '', designation: '', photo: '', bio: '', isActive: true, order: 0, socials: { facebook: '', twitter: '', linkedin: '' } }) }}>Cancel edit</button>}
+                  </div>
+                </div>
+                <div className="editor-grid">
+                  <div className="add-product-card">
+                    <div className="card-header">
+                      <h3>{editingTeamId ? '✏️ Edit Team Member' : '➕ Add Team Member'}</h3>
+                    </div>
+                    <div className="form-grid">
+                      <div className="form-group">
+                        <label>Name</label>
+                        <input type="text" value={newTeam.name} onChange={(e) => setNewTeam({ ...newTeam, name: e.target.value })} placeholder="Full name" />
+                      </div>
+                      <div className="form-group">
+                        <label>Designation</label>
+                        <input type="text" value={newTeam.designation} onChange={(e) => setNewTeam({ ...newTeam, designation: e.target.value })} placeholder="Designation" />
+                      </div>
+                      <div className="form-group">
+                        <label>Bio</label>
+                        <textarea value={newTeam.bio} onChange={(e) => setNewTeam({ ...newTeam, bio: e.target.value })} placeholder="Short bio" />
+                      </div>
+                    <div className="form-group">
+                      <label>Upload Photo</label>
+                        <input type="file" accept="image/*" onChange={async (e) => {
+                          const f = e.target.files?.[0]
+                          if (!f) return
+                          const url = await uploadTeamImage(f)
+                          if (url) setNewTeam({ ...newTeam, photo: url })
+                        }} />
+                        {uploadingTeamPhoto && <div>Uploading...</div>}
+                      </div>
+                    </div>
+                    <div className="form-actions">
+                      <button className="btn-success" onClick={createTeamMember}>{editingTeamId ? 'Save Changes' : 'Add Team Member'}</button>
+                      {editingTeamId && (
+                        <button className="btn-secondary" onClick={() => { setEditingTeamId(null); setNewTeam({ name: '', designation: '', photo: '', bio: '', isActive: true, order: 0, socials: { facebook: '', twitter: '', linkedin: '' } }) }}>Cancel</button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="products-table-card">
+                    <div className="card-header">
+                      <h3>📋 Team List</h3>
+                      <div className="header-actions">
+                        <button className="btn-secondary" onClick={loadTeam}><span>🔄</span> Reload</button>
+                      </div>
+                    </div>
+                    <div className="table-container">
+                      <table className="products-table">
+                        <thead>
+                          <tr>
+                            <th style={{ width: 80 }}>Order</th>
+                            <th style={{ width: 72 }}>Photo</th>
+                            <th>Name</th>
+                            <th>Designation</th>
+                            <th>Socials</th>
+                            <th style={{ width: 120 }}>Active</th>
+                            <th style={{ width: 220 }}>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {teamMembers
+                            .filter(m => (m.name + ' ' + m.designation).toLowerCase().includes(teamQuery.toLowerCase()))
+                            .map(m => (
+                            <tr key={m._id}>
+                              <td>
+                                <button onClick={() => changeOrder(m, -1)}>▲</button>
+                                <span style={{ margin: '0 8px' }}>{m.order || 0}</span>
+                                <button onClick={() => changeOrder(m, 1)}>▼</button>
+                              </td>
+                              <td>
+                                {m.photo ? (
+                                  <img src={m.photo} alt={m.name} style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: '50%' }} />
+                                ) : (
+                                  <div className="no-image">No</div>
+                                )}
+                              </td>
+                              <td>{m.name}</td>
+                              <td>{m.designation}</td>
+                              <td>
+                                <div className="team-socials">
+                                  {m.socials?.facebook && <a href={m.socials.facebook} target="_blank" rel="noreferrer">Fb</a>}
+                                  {m.socials?.twitter && <a href={m.socials.twitter} target="_blank" rel="noreferrer">Tw</a>}
+                                  {m.socials?.linkedin && <a href={m.socials.linkedin} target="_blank" rel="noreferrer">In</a>}
+                                </div>
+                              </td>
+                              <td>
+                                <button className={`toggle-btn ${m.isActive ? 'on' : 'off'}`} onClick={() => toggleTeamActive(m)}>
+                                  {m.isActive ? 'Active' : 'Inactive'}
+                                </button>
+                              </td>
+                              <td>
+                                <button className="secondary-btn" onClick={() => startEditTeam(m)}>Edit</button>
+                                <button className="btn-danger" onClick={() => deleteTeamMember(m._id)} style={{ marginLeft: 8 }}>Delete</button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 </div>
@@ -1780,6 +2115,187 @@ export default function Admin() {
                       <p>No slides found. Add your first slide above!</p>
                     </div>
                   )}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'blogs' && (
+              <div className="blogs-management">
+                <div className="section-header">
+                  <h2>📝 Blog Management</h2>
+                  <div className="header-actions">
+                    <button className="btn-secondary" onClick={loadBlogs}>
+                      <span>🔄</span> Reload
+                    </button>
+                    {publishStatus === 'saved' && <span className="success-message">✅ Blog saved!</span>}
+                    {publishStatus === 'updated' && <span className="success-message">✅ Blog updated!</span>}
+                    {publishStatus === 'deleted' && <span className="success-message">✅ Blog deleted!</span>}
+                    {publishStatus === 'error' && <span className="error-message">❌ Operation failed</span>}
+                  </div>
+                </div>
+
+                <div className="add-product-card">
+                  <div className="card-header">
+                    <h3>➕ Add New Blog Post</h3>
+                  </div>
+                  <div className="form-grid">
+                    <div className="form-group full-width">
+                      <label>Blog Title *</label>
+                      <input id="blog-title" placeholder="Enter blog title" />
+                    </div>
+                    <div className="form-group">
+                      <label>Category *</label>
+                      <input id="blog-category" placeholder="e.g., Web Design" />
+                    </div>
+                    <div className="form-group">
+                      <label>Author</label>
+                      <input id="blog-author" placeholder="Author name" defaultValue="Admin" />
+                    </div>
+                    <div className="form-group full-width">
+                      <label>Excerpt / Short Description</label>
+                      <textarea id="blog-excerpt" placeholder="Brief description for preview..." rows="2"></textarea>
+                    </div>
+                    <div className="form-group full-width">
+                      <label>Content *</label>
+                      <textarea id="blog-content" placeholder="Full blog content..." rows="6"></textarea>
+                    </div>
+                    
+                    <div className="form-group">
+                      <label>Order</label>
+                      <input id="blog-order" type="number" defaultValue="0" />
+                    </div>
+                    <div className="form-group">
+                      <label>Published</label>
+                      <input id="blog-published" type="checkbox" />
+                    </div>
+                    <div className="form-group full-width">
+                      <label>Cover Image</label>
+                      <input 
+                        id="blog-image" 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={async (e) => {
+                          const file = e.target.files[0]
+                          if (file) {
+                            const imageUrl = await uploadBlogImage(file)
+                            if (imageUrl) {
+                              document.getElementById('blog-image-url').value = imageUrl
+                            }
+                          }
+                        }}
+                      />
+                      <input id="blog-image-url" type="hidden" />
+                      {uploadingBlogImage && <div className="upload-status">📤 Uploading...</div>}
+                    </div>
+                  </div>
+                  <div className="form-actions">
+                    <button className="btn-success" onClick={async () => {
+                      const title = document.getElementById('blog-title').value.trim()
+                      const content = document.getElementById('blog-content').value.trim()
+                      const excerpt = document.getElementById('blog-excerpt').value.trim()
+                      const category = document.getElementById('blog-category').value.trim()
+                      const author = document.getElementById('blog-author').value.trim() || 'Admin'
+                      const coverImage = document.getElementById('blog-image-url').value.trim()
+                      const isPublished = document.getElementById('blog-published').checked
+                      const order = parseInt(document.getElementById('blog-order').value || '0', 10)
+                      
+                      if (!title || !content || !category) {
+                        alert('Please fill in Title, Content, and Category')
+                        return
+                      }
+                      
+                      const slug = generateSlug(title)
+                      
+                      const blogData = {
+                        title,
+                        slug,
+                        content,
+                        excerpt,
+                        category,
+                        author,
+                        coverImage: coverImage || undefined,
+                        isPublished,
+                        order,
+                        publishedAt: isPublished ? new Date() : undefined
+                      }
+                      
+                      await createBlog(blogData)
+                    }}>
+                      <span>➕</span> Add Blog
+                    </button>
+                  </div>
+                </div>
+
+                <div className="projects-table-card">
+                  <div className="card-header">
+                    <h3>📋 Blogs List ({blogs.length})</h3>
+                  </div>
+                  <div className="table-container">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Cover Image</th>
+                          <th>Title</th>
+                          <th>Category</th>
+                          <th>Author</th>
+                          <th>Published</th>
+                          <th>Date</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {blogs.map(blog => (
+                          <tr key={blog._id}>
+                            <td>
+                              {blog.coverImage ? (
+                                <img src={`http://localhost:3001${blog.coverImage}`} alt={blog.title} className="project-thumbnail" />
+                              ) : (
+                                <div className="no-image">📷</div>
+                              )}
+                            </td>
+                            <td className="project-title">{blog.title}</td>
+                            <td>{blog.category || '-'}</td>
+                            <td>{blog.author || 'Admin'}</td>
+                            <td>
+                              {blog.isPublished ? (
+                                <span className="status-badge published">✅ Published</span>
+                              ) : (
+                                <span className="status-badge draft">📝 Draft</span>
+                              )}
+                            </td>
+                            <td>
+                              {blog.publishedAt 
+                                ? new Date(blog.publishedAt).toLocaleDateString()
+                                : new Date(blog.createdAt).toLocaleDateString()}
+                            </td>
+                            <td>
+                              <div className="action-buttons">
+                                <button 
+                                  className="btn-edit" 
+                                  onClick={() => editBlog(blog)}
+                                  title="Edit Blog"
+                                >
+                                  ✏️
+                                </button>
+                                <button 
+                                  className="btn-delete" 
+                                  onClick={() => deleteBlog(blog._id)}
+                                  title="Delete Blog"
+                                >
+                                  🗑️
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {blogs.length === 0 && (
+                      <div className="empty-state">
+                        <p>No blogs found. Add your first blog post above!</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -3696,6 +4212,117 @@ export default function Admin() {
                 await updateCategory(updatedData)
               }}>
                 <span>💾</span> Update Category
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Blog Modal */}
+      {showBlogEditModal && editingBlog && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '800px', maxHeight: '90vh', overflow: 'auto' }}>
+            <div className="modal-header">
+              <h3>✏️ Edit Blog</h3>
+              <button className="modal-close" onClick={() => { setShowBlogEditModal(false); setEditingBlog(null) }}>
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="form-grid">
+                <div className="form-group full-width">
+                  <label>Blog Title *</label>
+                  <input id="edit-blog-title" defaultValue={editingBlog.title} />
+                </div>
+                <div className="form-group">
+                  <label>Category *</label>
+                  <input id="edit-blog-category" defaultValue={editingBlog.category || ''} />
+                </div>
+                <div className="form-group">
+                  <label>Author</label>
+                  <input id="edit-blog-author" defaultValue={editingBlog.author || 'Admin'} />
+                </div>
+                <div className="form-group full-width">
+                  <label>Excerpt / Short Description</label>
+                  <textarea id="edit-blog-excerpt" rows="2" defaultValue={editingBlog.excerpt || ''}></textarea>
+                </div>
+                <div className="form-group full-width">
+                  <label>Content *</label>
+                  <textarea id="edit-blog-content" rows="6" defaultValue={editingBlog.content || ''}></textarea>
+                </div>
+                
+                <div className="form-group">
+                  <label>Order</label>
+                  <input id="edit-blog-order" type="number" defaultValue={editingBlog.order || 0} />
+                </div>
+                <div className="form-group">
+                  <label>Published</label>
+                  <input id="edit-blog-published" type="checkbox" defaultChecked={editingBlog.isPublished || false} />
+                </div>
+                <div className="form-group full-width">
+                  <label>Cover Image</label>
+                  <input 
+                    id="edit-blog-image" 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={async (e) => {
+                      const file = e.target.files[0]
+                      if (file) {
+                        const imageUrl = await uploadBlogImage(file)
+                        if (imageUrl) {
+                          document.getElementById('edit-blog-image-url').value = imageUrl
+                        }
+                      }
+                    }}
+                  />
+                  <input id="edit-blog-image-url" type="hidden" defaultValue={editingBlog.coverImage || ''} />
+                  {uploadingBlogImage && <div className="upload-status">📤 Uploading...</div>}
+                  {editingBlog.coverImage && (
+                    <div className="current-image">
+                      <img src={`http://localhost:3001${editingBlog.coverImage}`} alt="Current" className="current-thumbnail" />
+                      <span>Current image</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-secondary" onClick={() => { setShowBlogEditModal(false); setEditingBlog(null) }}>
+                Cancel
+              </button>
+              <button className="btn-success" onClick={async () => {
+                const title = document.getElementById('edit-blog-title').value.trim()
+                const content = document.getElementById('edit-blog-content').value.trim()
+                const excerpt = document.getElementById('edit-blog-excerpt').value.trim()
+                const category = document.getElementById('edit-blog-category').value.trim()
+                const author = document.getElementById('edit-blog-author').value.trim() || 'Admin'
+                const coverImage = document.getElementById('edit-blog-image-url').value.trim()
+                const isPublished = document.getElementById('edit-blog-published').checked
+                const order = parseInt(document.getElementById('edit-blog-order').value || '0', 10)
+                
+                if (!title || !content || !category) {
+                  alert('Please fill in Title, Content, and Category')
+                  return
+                }
+                
+                const slug = editingBlog.slug || generateSlug(title)
+                
+                const blogData = {
+                  title,
+                  slug,
+                  content,
+                  excerpt,
+                  category,
+                  author,
+                  coverImage: coverImage || undefined,
+                  isPublished,
+                  order,
+                  publishedAt: isPublished && !editingBlog.publishedAt ? new Date() : (isPublished ? editingBlog.publishedAt : undefined)
+                }
+                
+                await updateBlog(editingBlog._id, blogData)
+              }}>
+                <span>💾</span> Update Blog
               </button>
             </div>
           </div>

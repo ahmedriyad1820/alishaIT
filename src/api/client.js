@@ -251,6 +251,60 @@ export const sliderConfigAPI = {
   }
 }
 
+// Team Members API
+export const teamMembersAPI = {
+  async list(activeOnly = false) {
+    const qs = activeOnly ? '?active=true' : ''
+    return await apiCall(`/team-members${qs}`)
+  },
+
+  async create(member) {
+    return await apiCall('/team-members', {
+      method: 'POST',
+      body: JSON.stringify(member)
+    })
+  },
+
+  async update(id, member) {
+    return await apiCall(`/team-members/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(member)
+    })
+  },
+
+  async delete(id) {
+    return await apiCall(`/team-members/${id}`, {
+      method: 'DELETE'
+    })
+  }
+}
+
+// Blogs API
+export const blogAPI = {
+  async list(publishedOnly = false) {
+    const qs = publishedOnly ? '?published=true' : ''
+    return await apiCall(`/blogs${qs}`)
+  },
+  async getBySlug(slug) {
+    return await apiCall(`/blogs/slug/${encodeURIComponent(slug)}`)
+  },
+  async create(blog) {
+    return await apiCall('/blogs', {
+      method: 'POST',
+      body: JSON.stringify(blog)
+    })
+  },
+  async update(id, blog) {
+    return await apiCall(`/blogs/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(blog)
+    })
+  },
+  async delete(id) {
+    return await apiCall(`/blogs/${id}`, { method: 'DELETE' })
+  }
+}
+
 export default {
   contactAPI,
   quoteAPI,
@@ -263,5 +317,7 @@ export default {
   productItemsAPI,
   categoriesAPI,
   slidersAPI,
-  sliderConfigAPI
+  sliderConfigAPI,
+  teamMembersAPI,
+  blogAPI
 }

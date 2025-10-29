@@ -1,24 +1,23 @@
+import { useEffect, useState } from 'react'
+import { teamMembersAPI } from '../api/client.js'
+
 export default function TeamMembers() {
-  const teamMembers = [
-    {
-      name: "Full Name",
-      designation: "DESIGNATION",
-      avatar: "👨‍💼",
-      description: "Professional team member with expertise in technology solutions."
-    },
-    {
-      name: "Full Name", 
-      designation: "DESIGNATION",
-      avatar: "👩‍💼",
-      description: "Experienced professional dedicated to delivering quality results."
-    },
-    {
-      name: "Full Name",
-      designation: "DESIGNATION", 
-      avatar: "👨‍💼",
-      description: "Skilled professional committed to client success and innovation."
-    }
-  ]
+  const [teamMembers, setTeamMembers] = useState([])
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    (async () => {
+      try {
+        setLoading(true)
+        const res = await teamMembersAPI.list(true)
+        if (res.success) setTeamMembers(res.data)
+      } catch (e) {
+        console.error('Failed to load team members', e)
+      } finally {
+        setLoading(false)
+      }
+    })()
+  }, [])
 
   return (
     <section className="team-members">
@@ -29,23 +28,31 @@ export default function TeamMembers() {
           <div className="team-underline"></div>
         </div>
 
-        <div className="team-grid">
-          {teamMembers.map((member, index) => (
-            <div key={index} className="team-card">
-              <div className="member-image">
-                <div className="image-placeholder">
-                  <div className="member-avatar">{member.avatar}</div>
-                  <div className="image-background"></div>
+        {loading ? (
+          <div className="team-grid"><div className="team-card">Loading...</div></div>
+        ) : (
+          <div className="team-grid">
+            {teamMembers.map((member) => (
+              <div key={member._id} className="team-card">
+                <div className="member-image">
+                  <div className="image-placeholder">
+                    {member.photo ? (
+                      <img src={member.photo} alt={member.name} className="member-photo" />
+                    ) : (
+                      <div className="member-avatar">👤</div>
+                    )}
+                    <div className="image-background"></div>
+                  </div>
+                </div>
+                <div className="member-info">
+                  <h3 className="member-name">{member.name}</h3>
+                  <p className="member-designation">{member.designation}</p>
+                  {member.bio && <p className="member-description">{member.bio}</p>}
                 </div>
               </div>
-              <div className="member-info">
-                <h3 className="member-name">{member.name}</h3>
-                <p className="member-designation">{member.designation}</p>
-                <p className="member-description">{member.description}</p>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   )

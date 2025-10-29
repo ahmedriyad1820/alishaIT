@@ -71,11 +71,7 @@ export default function Project() {
                           <img src={`http://localhost:3001${project.image}`} alt={project.title} className="project-main-image" />
                         </div>
                       )}
-                      <div className="project-icon">
-                        <div className="icon-diamond">
-                          <span className="icon-symbol">{project.icon}</span>
-                        </div>
-                      </div>
+                      
                       <h3 className="project-title">{project.title}</h3>
                       <p className="project-description">{project.description}</p>
                       <div className="project-rating">

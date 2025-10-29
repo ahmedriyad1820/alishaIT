@@ -178,10 +178,7 @@ const blogSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
-  tags: [{
-    type: String,
-    trim: true
-  }],
+  
   featuredImage: {
     type: String,
     trim: true
