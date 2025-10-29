@@ -5,6 +5,7 @@ const API_BASE_URL = 'http://localhost:3001/api'
 const apiCall = async (endpoint, options = {}) => {
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         ...options.headers
@@ -69,6 +70,14 @@ export const adminAPI = {
       method: 'POST',
       body: JSON.stringify({ username, password })
     })
+  },
+
+  async me() {
+    return await apiCall('/admin/me')
+  },
+
+  async logout() {
+    return await apiCall('/admin/logout', { method: 'POST' })
   },
 
   async getStats() {

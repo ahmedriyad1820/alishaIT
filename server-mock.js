@@ -1,12 +1,31 @@
 import express from 'express'
 import cors from 'cors'
+import session from 'express-session'
 
 const app = express()
 const PORT = process.env.PORT || 3001
 
 // Middleware
-app.use(cors())
+app.use(cors({
+  origin: (origin, cb) => cb(null, true),
+  credentials: true
+}))
 app.use(express.json())
+
+// Sessions
+const sessionSecret = process.env.SESSION_SECRET || 'change_this_secret'
+app.use(session({
+  name: 'sid',
+  secret: sessionSecret,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 1000 * 60 * 60 * 8
+  }
+}))
 
 // Mock data storage (in-memory)
 let mockData = {
@@ -18,6 +37,12 @@ let mockData = {
 }
 
 // Routes
+
+// Auth guard
+const requireAdmin = (req, res, next) => {
+  if (req.session && req.session.adminId) return next()
+  return res.status(401).json({ success: false, error: 'Unauthorized' })
+}
 
 // Contact routes
 app.post('/api/contacts', async (req, res) => {
@@ -101,14 +126,37 @@ app.post('/api/admin/login', async (req, res) => {
     if (!admin) {
       return res.status(401).json({ success: false, error: 'Invalid credentials' })
     }
-    
+    // set session
+    req.session.adminId = '1'
+    req.session.username = admin.username
+    req.session.role = admin.role
+
     res.json({ success: true, data: { id: '1', username: admin.username, role: admin.role } })
   } catch (error) {
     res.status(500).json({ success: false, error: error.message })
   }
 })
 
-app.get('/api/admin/stats', async (req, res) => {
+app.get('/api/admin/me', (req, res) => {
+  if (req.session && req.session.adminId) {
+    return res.json({ success: true, data: {
+      id: req.session.adminId,
+      username: req.session.username,
+      role: req.session.role
+    } })
+  }
+  return res.status(401).json({ success: false, error: 'Unauthorized' })
+})
+
+app.post('/api/admin/logout', (req, res) => {
+  if (!req.session) return res.json({ success: true })
+  req.session.destroy(() => {
+    res.clearCookie('sid')
+    return res.json({ success: true })
+  })
+})
+
+app.get('/api/admin/stats', requireAdmin, async (req, res) => {
   try {
     const totalRevenue = mockData.orders.reduce((sum, order) => sum + (order.amount || 0), 0)
     

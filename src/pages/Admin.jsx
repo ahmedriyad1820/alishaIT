@@ -42,13 +42,21 @@ export default function Admin() {
   const [publishStatus, setPublishStatus] = useState('')
   const [isPublishing, setIsPublishing] = useState(false)
 
-  // Check if user is already authenticated (from localStorage)
+  // Check if user is already authenticated (via session cookie)
   useEffect(() => {
-    const authStatus = localStorage.getItem('adminAuthenticated')
-    if (authStatus === 'true') {
-      setIsAuthenticated(true)
-      loadDashboardData()
-    }
+    (async () => {
+      try {
+        const res = await adminAPI.me()
+        if (res.success) {
+          setIsAuthenticated(true)
+          loadDashboardData()
+        } else {
+          setIsAuthenticated(false)
+        }
+      } catch (_) {
+        setIsAuthenticated(false)
+      }
+    })()
   }, [])
 
   // Load page content when switching to edit mode
@@ -100,14 +108,13 @@ export default function Admin() {
   const handleLogin = async (success) => {
     if (success) {
       setIsAuthenticated(true)
-      localStorage.setItem('adminAuthenticated', 'true')
       await loadDashboardData()
     }
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try { await adminAPI.logout() } catch (_) {}
     setIsAuthenticated(false)
-    localStorage.removeItem('adminAuthenticated')
     setActiveTab('dashboard')
     setStats({ totalContacts: 0, totalQuotes: 0, totalOrders: 0, totalRevenue: 0 })
     setContacts([])

@@ -11,12 +11,14 @@
     "server": "node server.js",
     "server:mock": "node server-mock.js",
     "start": "npm run server",
-    "start:full": "concurrently -k -n 'api,web' -c 'cyan,magenta' \"npm:server\" \"npm:dev\""
+    "start:full": "concurrently -k -n 'api,web' -c 'cyan,magenta' \"npm:server\" \"npm:dev\"",
+    "start:mock": "concurrently -k -n 'api,web' -c 'cyan,magenta' \"npm:server:mock\" \"npm:dev\""
   },
   "dependencies": {
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
+    "express-session": "^1.18.2",
     "mongoose": "^8.19.2",
     "multer": "^2.0.2",
     "react": "^19.1.1",

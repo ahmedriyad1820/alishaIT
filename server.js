@@ -6,6 +6,7 @@ import multer from 'multer'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import fs from 'fs'
+import session from 'express-session'
 
 // Load environment variables
 dotenv.config()
@@ -23,9 +24,27 @@ const app = express()
 const PORT = process.env.PORT || 3001
 
 // Middleware
-app.use(cors())
+app.use(cors({
+  origin: (origin, cb) => cb(null, true),
+  credentials: true
+}))
 app.use(express.json())
 app.use('/uploads', express.static(uploadsDir))
+
+// Session setup
+const sessionSecret = process.env.SESSION_SECRET || 'change_this_secret'
+app.use(session({
+  name: 'sid',
+  secret: sessionSecret,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 1000 * 60 * 60 * 8 // 8 hours
+  }
+}))
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -229,6 +248,14 @@ mongoose.connection.on('connected', () => {
 
 // Routes
 
+// Auth guard
+const requireAdmin = (req, res, next) => {
+  if (req.session && req.session.adminId) {
+    return next()
+  }
+  return res.status(401).json({ success: false, error: 'Unauthorized' })
+}
+
 // Contact routes
 app.post('/api/contacts', async (req, res) => {
   try {
@@ -321,7 +348,12 @@ app.post('/api/admin/login', async (req, res) => {
     
     // Update last login
     await Admin.findByIdAndUpdate(admin._id, { lastLogin: new Date() })
-    
+
+    // Set session
+    req.session.adminId = admin._id.toString()
+    req.session.username = admin.username
+    req.session.role = admin.role
+
     res.json({ success: true, data: { id: admin._id, username: admin.username, role: admin.role } })
   } catch (error) {
     console.error('Admin login error:', error)
@@ -329,7 +361,28 @@ app.post('/api/admin/login', async (req, res) => {
   }
 })
 
-app.get('/api/admin/stats', async (req, res) => {
+// Current session info
+app.get('/api/admin/me', (req, res) => {
+  if (req.session && req.session.adminId) {
+    return res.json({ success: true, data: {
+      id: req.session.adminId,
+      username: req.session.username,
+      role: req.session.role
+    } })
+  }
+  return res.status(401).json({ success: false, error: 'Unauthorized' })
+})
+
+// Logout
+app.post('/api/admin/logout', (req, res) => {
+  if (!req.session) return res.json({ success: true })
+  req.session.destroy(() => {
+    res.clearCookie('sid')
+    return res.json({ success: true })
+  })
+})
+
+app.get('/api/admin/stats', requireAdmin, async (req, res) => {
   try {
     const [totalContacts, totalQuotes, totalOrders] = await Promise.all([
       Contact.countDocuments(),
@@ -365,7 +418,7 @@ app.get('/api/project-items', async (req, res) => {
   }
 })
 
-app.post('/api/project-items', async (req, res) => {
+app.post('/api/project-items', requireAdmin, async (req, res) => {
   try {
     const { title, description, icon = '🚀', image, manager, url, date, client, rating = 5 } = req.body
     if (!title || !description || !date) {
@@ -378,7 +431,7 @@ app.post('/api/project-items', async (req, res) => {
   }
 })
 
-app.put('/api/project-items/:id', async (req, res) => {
+app.put('/api/project-items/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params
     const { title, description, icon, image, manager, url, date, client, rating } = req.body
@@ -395,7 +448,7 @@ app.put('/api/project-items/:id', async (req, res) => {
   }
 })
 
-app.delete('/api/project-items/:id', async (req, res) => {
+app.delete('/api/project-items/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params
     const item = await ProjectItem.findByIdAndDelete(id)
@@ -418,7 +471,7 @@ app.get('/api/product-items', async (req, res) => {
   }
 })
 
-app.post('/api/product-items', async (req, res) => {
+app.post('/api/product-items', requireAdmin, async (req, res) => {
   try {
     const { title, description, icon = '📦', image, price, category, features, specifications, availability = 'In Stock', rating = 5 } = req.body
     if (!title || !description) {
@@ -431,7 +484,7 @@ app.post('/api/product-items', async (req, res) => {
   }
 })
 
-app.put('/api/product-items/:id', async (req, res) => {
+app.put('/api/product-items/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params
     const { title, description, icon, image, price, category, features, specifications, availability, rating } = req.body
@@ -448,7 +501,7 @@ app.put('/api/product-items/:id', async (req, res) => {
   }
 })
 
-app.delete('/api/product-items/:id', async (req, res) => {
+app.delete('/api/product-items/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params
     const item = await ProductItem.findByIdAndDelete(id)
@@ -480,7 +533,7 @@ app.get('/api/categories/all', async (req, res) => {
   }
 })
 
-app.post('/api/categories', async (req, res) => {
+app.post('/api/categories', requireAdmin, async (req, res) => {
   try {
     const { name, description, icon = '📁', color = '#3B82F6' } = req.body
     if (!name) {
@@ -496,7 +549,7 @@ app.post('/api/categories', async (req, res) => {
   }
 })
 
-app.put('/api/categories/:id', async (req, res) => {
+app.put('/api/categories/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params
     const { name, description, icon, color, isActive } = req.body
@@ -516,7 +569,7 @@ app.put('/api/categories/:id', async (req, res) => {
   }
 })
 
-app.delete('/api/categories/:id', async (req, res) => {
+app.delete('/api/categories/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params
     
@@ -554,7 +607,7 @@ app.get('/api/sliders', async (req, res) => {
   }
 })
 
-app.post('/api/sliders', async (req, res) => {
+app.post('/api/sliders', requireAdmin, async (req, res) => {
   try {
     const { title, caption, image, link, order = 0, isActive = true } = req.body
     if (!image) {
@@ -567,7 +620,7 @@ app.post('/api/sliders', async (req, res) => {
   }
 })
 
-app.put('/api/sliders/:id', async (req, res) => {
+app.put('/api/sliders/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params
     const { title, caption, image, link, order, isActive } = req.body
@@ -579,7 +632,7 @@ app.put('/api/sliders/:id', async (req, res) => {
   }
 })
 
-app.delete('/api/sliders/:id', async (req, res) => {
+app.delete('/api/sliders/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params
     const deleted = await SliderItem.findByIdAndDelete(id)
@@ -603,7 +656,7 @@ app.get('/api/slider-config', async (req, res) => {
   }
 })
 
-app.put('/api/slider-config', async (req, res) => {
+app.put('/api/slider-config', requireAdmin, async (req, res) => {
   try {
     const { intervalMs } = req.body
     const value = Number(intervalMs) > 0 ? Number(intervalMs) : 30000
@@ -636,7 +689,7 @@ app.get('/api/pages/:pageName', async (req, res) => {
   }
 })
 
-app.post('/api/pages/:pageName', async (req, res) => {
+app.post('/api/pages/:pageName', requireAdmin, async (req, res) => {
   try {
     const { pageName } = req.params
     const { sections, published = false } = req.body
