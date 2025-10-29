@@ -97,6 +97,27 @@ export default function BlogDetails() {
             </div>
 
             <div className="sidebar">
+              <div className="project-information-box" style={{ marginBottom: 20 }}>
+                <h3 className="info-title">Blog Information</h3>
+              </div>
+              <div className="project-details-list" style={{ marginBottom: 24 }}>
+                <div className="detail-row">
+                  <span className="detail-label">Title:</span>
+                  <span className="detail-value">{blog.title}</span>
+                </div>
+                <div className="detail-row">
+                  <span className="detail-label">Author:</span>
+                  <span className="detail-value">{blog.author || 'Admin'}</span>
+                </div>
+                <div className="detail-row">
+                  <span className="detail-label">Category:</span>
+                  <span className="detail-value">{blog.category || 'General'}</span>
+                </div>
+                <div className="detail-row">
+                  <span className="detail-label">Published:</span>
+                  <span className="detail-value">{formatDate(blog.publishedAt || blog.createdAt)}</span>
+                </div>
+              </div>
               <div className="categories-section">
                 <h3 className="sidebar-title">Category</h3>
                 <div className="sidebar-underline"></div>

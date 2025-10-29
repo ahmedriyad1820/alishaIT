@@ -47,16 +47,16 @@ export default function Navbar({ onNavigate, currentPage }) {
                 Project
               </button>
               <button 
-                onClick={() => handleNavClick('blog')} 
-                className={`nav-link ${currentPage === 'blog' ? 'active' : ''}`}
-              >
-                Blog
-              </button>
-              <button 
                 onClick={() => handleNavClick('product')} 
                 className={`nav-link ${currentPage === 'product' ? 'active' : ''}`}
               >
                 Product
+              </button>
+              <button 
+                onClick={() => handleNavClick('blog')} 
+                className={`nav-link ${currentPage === 'blog' ? 'active' : ''}`}
+              >
+                Blog
               </button>
               <button 
                 onClick={() => handleNavClick('contact')} 

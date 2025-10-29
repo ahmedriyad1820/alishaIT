@@ -105,15 +105,15 @@ export default function Product() {
                   products.map((product, index) => (
                     <div key={product._id || index} className="product-card" onClick={() => handleProductClick(product)}>
                       {product.image && (
-                        <div className="product-image">
-                          <img src={`http://localhost:3001${product.image}`} alt={product.title} className="product-main-image" />
+                        <div className="product-image" style={{ width: '100%', height: 220, overflow: 'hidden', borderRadius: 12 }}>
+                          <img 
+                            src={`http://localhost:3001${product.image}`} 
+                            alt={product.title} 
+                            className="product-main-image"
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                          />
                         </div>
                       )}
-                      <div className="product-icon">
-                        <div className="icon-diamond">
-                          <span className="icon-symbol">{product.icon}</span>
-                        </div>
-                      </div>
                       <h3 className="product-title">{product.title}</h3>
                       <p className="product-description">{product.description}</p>
                       <div className="product-price">{product.price || 'Contact for Price'}</div>
@@ -144,12 +144,22 @@ export default function Product() {
             <div className="container">
               <div className="product-layout">
                 <div className="main-content">
-                  <div className="product-image">
+                  <div className="product-image" style={{
+                    width: '100%',
+                    borderRadius: 12,
+                    background: '#0b1220',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'hidden',
+                    maxHeight: '70vh'
+                  }}>
                     {selectedProduct?.image ? (
                       <img 
                         src={`http://localhost:3001${selectedProduct.image}`} 
                         alt={selectedProduct.title} 
                         className="product-main-image"
+                        style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
                       />
                     ) : (
                       <div className="image-placeholder">
