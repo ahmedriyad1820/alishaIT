@@ -14,6 +14,9 @@ export default function Admin() {
   const [contacts, setContacts] = useState([])
   const [quotes, setQuotes] = useState([])
   const [orders, setOrders] = useState([])
+  const [viewingQuote, setViewingQuote] = useState(null)
+  const [updatingQuote, setUpdatingQuote] = useState(null)
+  const [quoteForm, setQuoteForm] = useState({ status: 'pending', quotedAmount: 0, remark: '' })
   const [loading, setLoading] = useState(false)
   const [projectItems, setProjectItems] = useState([])
   const [editingProject, setEditingProject] = useState(null)
@@ -143,6 +146,81 @@ export default function Admin() {
     setPageContent({})
     setEditingPage(null)
     setPublishStatus('')
+    setViewingQuote(null)
+    setUpdatingQuote(null)
+  }
+
+  // Quote view and update functions
+  const handleViewQuote = async (quoteId) => {
+    try {
+      console.log('Fetching quote with ID:', quoteId)
+      const result = await quoteAPI.get(quoteId)
+      console.log('Quote API result:', result)
+      if (result.success) {
+        setViewingQuote(result.data)
+      } else {
+        console.error('Quote fetch failed:', result.error)
+        alert('Failed to load quote: ' + (result.error || 'Unknown error'))
+      }
+    } catch (error) {
+      console.error('Error viewing quote:', error)
+      alert('Error loading quote: ' + (error.message || 'Unknown error'))
+    }
+  }
+
+  const handleUpdateQuoteClick = (quote) => {
+    setUpdatingQuote(quote)
+    setQuoteForm({
+      status: quote.status || 'pending',
+      quotedAmount: quote.quotedAmount || 0,
+      remark: quote.remark || ''
+    })
+  }
+
+  const handleUpdateQuote = async () => {
+    if (!updatingQuote) return
+    
+    if (!updatingQuote._id) {
+      alert('Error: Quote ID is missing')
+      console.error('Updating quote object:', updatingQuote)
+      return
+    }
+    
+    try {
+      console.log('Updating quote:', { id: updatingQuote._id, form: quoteForm })
+      const result = await quoteAPI.update(updatingQuote._id, quoteForm)
+      console.log('Update result:', result)
+      if (result.success) {
+        // Refresh quotes list
+        await loadDashboardData()
+        setUpdatingQuote(null)
+        setQuoteForm({ status: 'pending', quotedAmount: 0, remark: '' })
+        alert('Quote updated successfully!')
+      } else {
+        console.error('Quote update failed:', result.error)
+        alert('Failed to update quote: ' + (result.error || 'Unknown error'))
+      }
+    } catch (error) {
+      console.error('Error updating quote:', error)
+      alert('Error updating quote: ' + (error.message || 'Unknown error'))
+    }
+  }
+
+  const handleDeleteQuote = async (quoteId) => {
+    if (!confirm('Are you sure you want to delete this quote?')) return
+    
+    try {
+      const result = await quoteAPI.delete(quoteId)
+      if (result.success) {
+        await loadDashboardData()
+        alert('Quote deleted successfully!')
+      } else {
+        alert('Failed to delete quote: ' + (result.error || 'Unknown error'))
+      }
+    } catch (error) {
+      console.error('Error deleting quote:', error)
+      alert('Error deleting quote: ' + (error.message || 'Unknown error'))
+    }
   }
 
   // Projects load/create helpers
@@ -1553,8 +1631,15 @@ export default function Admin() {
                               </span>
                             </td>
                             <td>
-                              <button className="btn-sm">View</button>
-                              <button className="btn-sm">Update</button>
+                              <button className="btn-sm" onClick={() => {
+                                if (!quote._id) {
+                                  alert('Error: Quote ID is missing')
+                                  console.error('Quote object:', quote)
+                                  return
+                                }
+                                handleViewQuote(quote._id)
+                              }}>View</button>
+                              <button className="btn-sm" onClick={() => handleUpdateQuoteClick(quote)}>Update</button>
                             </td>
                           </tr>
                         ))
@@ -1564,6 +1649,172 @@ export default function Admin() {
                 </div>
               </div>
             )}
+
+      {/* View Quote Modal */}
+      {viewingQuote && (
+        <div className="modal-overlay" onClick={() => setViewingQuote(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+            <div className="modal-header">
+              <h2>Quote Details</h2>
+              <button className="modal-close" onClick={() => setViewingQuote(null)}>×</button>
+            </div>
+            <div className="modal-body" style={{ padding: '1.5rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '4px', display: 'block' }}>Name</label>
+                  <p style={{ margin: 0, fontSize: '15px' }}>{viewingQuote.name}</p>
+                </div>
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '4px', display: 'block' }}>Email</label>
+                  <p style={{ margin: 0, fontSize: '15px' }}>{viewingQuote.email}</p>
+                </div>
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '4px', display: 'block' }}>Service</label>
+                  <p style={{ margin: 0, fontSize: '15px' }}>{viewingQuote.service}</p>
+                </div>
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '4px', display: 'block' }}>Message</label>
+                  <p style={{ margin: 0, fontSize: '15px', padding: '12px', backgroundColor: '#f5f5f5', borderRadius: '6px', whiteSpace: 'pre-wrap' }}>{viewingQuote.message}</p>
+                </div>
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '4px', display: 'block' }}>Quoted Amount</label>
+                  <p style={{ margin: 0, fontSize: '15px', fontWeight: '600', color: '#2196F3' }}>${viewingQuote.quotedAmount || 0}</p>
+                </div>
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '4px', display: 'block' }}>Status</label>
+                  <span 
+                    className="status-badge" 
+                    style={{ backgroundColor: getStatusColor(viewingQuote.status), padding: '6px 12px', borderRadius: '4px', fontSize: '12px', fontWeight: '600' }}
+                  >
+                    {viewingQuote.status?.toUpperCase() || 'PENDING'}
+                  </span>
+                </div>
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '4px', display: 'block' }}>Request Date</label>
+                  <p style={{ margin: 0, fontSize: '13px', color: '#999' }}>{formatDate(viewingQuote.createdAt)}</p>
+                </div>
+                {viewingQuote.updatedAt && viewingQuote.updatedAt !== viewingQuote.createdAt && (
+                  <div>
+                    <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '4px', display: 'block' }}>Last Updated</label>
+                    <p style={{ margin: 0, fontSize: '13px', color: '#999' }}>{formatDate(viewingQuote.updatedAt)}</p>
+                  </div>
+                )}
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '4px', display: 'block' }}>Remark</label>
+                  <p style={{ margin: 0, fontSize: '15px', padding: '12px', backgroundColor: '#f5f5f5', borderRadius: '6px', whiteSpace: 'pre-wrap', minHeight: '40px' }}>
+                    {viewingQuote.remark || <span style={{ color: '#999', fontStyle: 'italic' }}>No remark</span>}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer" style={{ padding: '1rem 1.5rem', borderTop: '1px solid #e0e0e0', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button className="btn-secondary" onClick={() => {
+                handleUpdateQuoteClick(viewingQuote)
+                setViewingQuote(null)
+              }}>Update Quote</button>
+              <button className="btn-danger" onClick={() => {
+                if (confirm('Are you sure you want to delete this quote?')) {
+                  handleDeleteQuote(viewingQuote._id)
+                  setViewingQuote(null)
+                }
+              }}>Delete</button>
+              <button className="btn-primary" onClick={() => setViewingQuote(null)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Update Quote Modal */}
+      {updatingQuote && (
+        <div className="modal-overlay" onClick={() => setUpdatingQuote(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <h2>Update Quote</h2>
+              <button className="modal-close" onClick={() => setUpdatingQuote(null)}>×</button>
+            </div>
+            <div className="modal-body" style={{ padding: '1.5rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '4px', display: 'block' }}>Client</label>
+                  <p style={{ margin: 0, fontSize: '15px', padding: '8px', backgroundColor: '#f5f5f5', borderRadius: '6px' }}>
+                    {updatingQuote.name} ({updatingQuote.email})
+                  </p>
+                </div>
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '4px', display: 'block' }}>Service</label>
+                  <p style={{ margin: 0, fontSize: '15px', padding: '8px', backgroundColor: '#f5f5f5', borderRadius: '6px' }}>
+                    {updatingQuote.service}
+                  </p>
+                </div>
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '6px', display: 'block' }}>Status *</label>
+                  <select
+                    value={quoteForm.status}
+                    onChange={(e) => setQuoteForm({ ...quoteForm, status: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      border: '1px solid #ddd',
+                      borderRadius: '6px',
+                      fontSize: '14px'
+                    }}
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="quoted">Quoted</option>
+                    <option value="accepted">Accepted</option>
+                    <option value="rejected">Rejected</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '6px', display: 'block' }}>Quoted Amount ($) *</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={quoteForm.quotedAmount}
+                    onChange={(e) => setQuoteForm({ ...quoteForm, quotedAmount: parseFloat(e.target.value) || 0 })}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      border: '1px solid #ddd',
+                      borderRadius: '6px',
+                      fontSize: '14px'
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '6px', display: 'block' }}>Remark</label>
+                  <textarea
+                    value={quoteForm.remark || ''}
+                    onChange={(e) => setQuoteForm({ ...quoteForm, remark: e.target.value })}
+                    placeholder="Add any remarks or notes about this quote..."
+                    rows="4"
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      border: '1px solid #ddd',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      fontFamily: 'inherit',
+                      resize: 'vertical'
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '4px', display: 'block' }}>Message</label>
+                  <p style={{ margin: 0, fontSize: '13px', padding: '10px', backgroundColor: '#f5f5f5', borderRadius: '6px', whiteSpace: 'pre-wrap', maxHeight: '150px', overflowY: 'auto' }}>
+                    {updatingQuote.message}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer" style={{ padding: '1rem 1.5rem', borderTop: '1px solid #e0e0e0', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button className="btn-secondary" onClick={() => setUpdatingQuote(null)}>Cancel</button>
+              <button className="btn-primary" onClick={handleUpdateQuote}>Save Changes</button>
+            </div>
+          </div>
+        </div>
+      )}
 
             {activeTab === 'orders' && (
               <div className="orders-section">

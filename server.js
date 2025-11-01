@@ -136,6 +136,7 @@ const quoteSchema = new mongoose.Schema({
   message: { type: String, required: true, trim: true },
   status: { type: String, enum: ['pending', 'quoted', 'accepted', 'rejected'], default: 'pending' },
   quotedAmount: { type: Number, default: 0 },
+  remark: { type: String, trim: true, default: '' },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 })
@@ -354,7 +355,7 @@ const requireAdmin = (req, res, next) => {
   if (req.session && req.session.adminId) {
     return next()
   }
-  console.log('❌ Unauthorized request to', req.path, '- Session:', req.session)
+  console.log('❌ Unauthorized request to', req.method, req.path, '- Session:', req.session?.adminId || 'none')
   return res.status(401).json({ success: false, error: 'Unauthorized - Please log in again' })
 }
 
@@ -393,6 +394,71 @@ app.get('/api/quotes', async (req, res) => {
   try {
     const quotes = await Quote.find().sort({ createdAt: -1 })
     res.json({ success: true, data: quotes })
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+app.get('/api/quotes/:id', requireAdmin, async (req, res) => {
+  try {
+    console.log('GET /api/quotes/:id - Request received:', { id: req.params.id, session: req.session?.adminId })
+    const { id } = req.params
+    // Validate MongoDB ObjectId format
+    if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
+      console.log('Invalid quote ID format:', id)
+      return res.status(400).json({ success: false, error: 'Invalid quote ID format' })
+    }
+    
+    const quote = await Quote.findById(id)
+    console.log('Quote found:', quote ? 'Yes' : 'No', 'ID:', id)
+    if (!quote) {
+      return res.status(404).json({ success: false, error: 'Quote not found' })
+    }
+    res.json({ success: true, data: quote })
+  } catch (error) {
+    console.error('Error fetching quote:', error)
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+app.put('/api/quotes/:id', requireAdmin, async (req, res) => {
+  try {
+    console.log('PUT /api/quotes/:id - Request received:', { id: req.params.id, body: req.body, session: req.session?.adminId })
+    const { id } = req.params
+    // Validate MongoDB ObjectId format
+    if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
+      console.log('Invalid quote ID format:', id)
+      return res.status(400).json({ success: false, error: 'Invalid quote ID format' })
+    }
+    
+    const { status, quotedAmount, remark } = req.body
+    const quote = await Quote.findById(id)
+    console.log('Quote found for update:', quote ? 'Yes' : 'No', 'ID:', id)
+    if (!quote) {
+      return res.status(404).json({ success: false, error: 'Quote not found' })
+    }
+    
+    if (status !== undefined) quote.status = status
+    if (quotedAmount !== undefined) quote.quotedAmount = quotedAmount
+    if (remark !== undefined) quote.remark = remark
+    quote.updatedAt = new Date()
+    
+    await quote.save()
+    console.log('Quote updated successfully:', quote._id)
+    res.json({ success: true, data: quote })
+  } catch (error) {
+    console.error('Error updating quote:', error)
+    res.status(400).json({ success: false, error: error.message })
+  }
+})
+
+app.delete('/api/quotes/:id', requireAdmin, async (req, res) => {
+  try {
+    const quote = await Quote.findByIdAndDelete(req.params.id)
+    if (!quote) {
+      return res.status(404).json({ success: false, error: 'Quote not found' })
+    }
+    res.json({ success: true, data: quote })
   } catch (error) {
     res.status(500).json({ success: false, error: error.message })
   }

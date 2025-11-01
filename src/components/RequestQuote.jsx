@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { quoteAPI } from '../api/client.js'
+import { useState, useEffect } from 'react'
+import { quoteAPI, servicesAPI } from '../api/client.js'
 import { useContent } from '../contexts/ContentContext'
 
 export default function RequestQuote() {
@@ -15,15 +15,35 @@ export default function RequestQuote() {
   const [sent, setSent] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [services, setServices] = useState([])
+  const [loadingServices, setLoadingServices] = useState(true)
 
-  const services = [
-    'Select A Service',
-    'Web Development',
-    'Mobile App Development',
-    'SEO Optimization',
-    'Digital Marketing',
-    'IT Consulting'
-  ]
+  // Fetch active services from database
+  useEffect(() => {
+    const loadServices = async () => {
+      try {
+        setLoadingServices(true)
+        const result = await servicesAPI.list(true) // Only active services
+        if (result.success && result.data) {
+          // Sort by order, then by creation date
+          const sortedServices = [...result.data].sort((a, b) => {
+            if (a.order !== b.order) return (a.order || 0) - (b.order || 0)
+            return new Date(a.createdAt) - new Date(b.createdAt)
+          })
+          setServices(sortedServices)
+        } else {
+          console.error('Failed to load services:', result.error)
+          setServices([])
+        }
+      } catch (err) {
+        console.error('Error loading services:', err)
+        setServices([])
+      } finally {
+        setLoadingServices(false)
+      }
+    }
+    loadServices()
+  }, [])
 
   function handleChange(e) {
     setForm({ ...form, [e.target.name]: e.target.value })
@@ -33,6 +53,13 @@ export default function RequestQuote() {
     e.preventDefault()
     setLoading(true)
     setError('')
+    
+    // Validate service is selected
+    if (!form.service || form.service.trim() === '') {
+      setError('Please select a service')
+      setLoading(false)
+      return
+    }
     
     try {
       const result = await quoteAPI.create(form)
@@ -108,10 +135,14 @@ export default function RequestQuote() {
                 value={form.service}
                 onChange={handleChange}
                 required
+                disabled={loadingServices}
               >
-                {services.map((service, index) => (
-                  <option key={index} value={service} disabled={index === 0}>
-                    {service}
+                <option value="" disabled>
+                  {loadingServices ? 'Loading services...' : 'Select A Service'}
+                </option>
+                {services.map((service) => (
+                  <option key={service._id} value={service.title}>
+                    {service.title}
                   </option>
                 ))}
               </select>

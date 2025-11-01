@@ -51,6 +51,23 @@ export const quoteAPI = {
 
   async getAll() {
     return await apiCall('/quotes')
+  },
+
+  async get(id) {
+    return await apiCall(`/quotes/${id}`)
+  },
+
+  async update(id, data) {
+    return await apiCall(`/quotes/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    })
+  },
+
+  async delete(id) {
+    return await apiCall(`/quotes/${id}`, {
+      method: 'DELETE'
+    })
   }
 }
 
