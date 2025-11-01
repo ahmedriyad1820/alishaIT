@@ -122,6 +122,7 @@ mongoose.connect(MONGODB_URI, {
 const contactSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
   email: { type: String, required: true, trim: true, lowercase: true },
+  phoneNumber: { type: String, trim: true, default: '' },
   subject: { type: String, required: true, trim: true },
   message: { type: String, required: true, trim: true },
   status: { type: String, enum: ['new', 'read', 'replied'], default: 'new' },
@@ -132,6 +133,7 @@ const contactSchema = new mongoose.Schema({
 const quoteSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
   email: { type: String, required: true, trim: true, lowercase: true },
+  phoneNumber: { type: String, trim: true, default: '' },
   service: { type: String, required: true, trim: true },
   message: { type: String, required: true, trim: true },
   status: { type: String, enum: ['pending', 'quoted', 'accepted', 'rejected'], default: 'pending' },
@@ -1177,6 +1179,13 @@ const getDefaultPageContent = (pageName) => {
         title: 'The Best IT Solution With 10 Years of Experience',
         description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.',
         readMoreButton: 'Read More'
+      },
+      statistics: {
+        items: [
+          { icon: '👥', label: 'Happy Clients', number: '12345' },
+          { icon: '✓', label: 'Projects Done', number: '12345' },
+          { icon: '🏆', label: 'Win Awards', number: '12345' }
+        ]
       },
       services: {
         subtitle: 'OUR SERVICES',

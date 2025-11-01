@@ -7,6 +7,12 @@ export default function About() {
   const aboutPage = content.about || {}
   const hero = aboutPage.hero || {}
   const aboutSection = aboutPage.content || {}
+  const stats = content.home?.statistics || {}
+  const statsItems = stats.items || [
+    { icon: '👥', label: 'Happy Clients', number: '12345' },
+    { icon: '✓', label: 'Projects Done', number: '12345' },
+    { icon: '🏆', label: 'Win Awards', number: '12345' }
+  ]
   const [activeTimeline, setActiveTimeline] = useState(0)
 
   const timelineSection = aboutPage.timeline || {}
@@ -85,27 +91,22 @@ export default function About() {
       <section className="about-stats">
         <div className="container">
           <div className="stats-grid">
-            <div className="stat-item stat-left">
-              <div className="stat-icon">👥</div>
-              <div className="stat-content">
-                <h3>Happy Clients</h3>
-                <span className="stat-number">12345</span>
-              </div>
-            </div>
-            <div className="stat-item stat-center">
-              <div className="stat-icon">✓</div>
-              <div className="stat-content">
-                <h3>Projects Done</h3>
-                <span className="stat-number">12345</span>
-              </div>
-            </div>
-            <div className="stat-item stat-right">
-              <div className="stat-icon">🏆</div>
-              <div className="stat-content">
-                <h3>Win Awards</h3>
-                <span className="stat-number">12345</span>
-              </div>
-            </div>
+            {statsItems.map((item, index) => {
+              let statClass = 'stat-item'
+              if (index === 0) statClass += ' stat-left'
+              else if (index === 1) statClass += ' stat-center'
+              else if (index === 2) statClass += ' stat-right'
+              
+              return (
+                <div key={index} className={statClass}>
+                  <div className="stat-icon">{item.icon || '📊'}</div>
+                  <div className="stat-content">
+                    <h3>{item.label || 'Statistic'}</h3>
+                    <span className="stat-number">{item.number || '0'}</span>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </div>
       </section>

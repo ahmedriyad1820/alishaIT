@@ -9,6 +9,7 @@ export default function RequestQuote() {
   const [form, setForm] = useState({ 
     name: '', 
     email: '', 
+    phoneNumber: '',
     service: '', 
     message: '' 
   })
@@ -66,7 +67,7 @@ export default function RequestQuote() {
       
       if (result.success) {
         setSent(true)
-        setForm({ name: '', email: '', service: '', message: '' })
+        setForm({ name: '', email: '', phoneNumber: '', service: '', message: '' })
         setTimeout(() => setSent(false), 3000)
         console.log('Quote request saved to MongoDB:', result.data)
       } else {
@@ -129,6 +130,13 @@ export default function RequestQuote() {
                 value={form.email}
                 onChange={handleChange}
                 required
+              />
+              <input
+                name="phoneNumber"
+                type="tel"
+                placeholder="Contact Number"
+                value={form.phoneNumber}
+                onChange={handleChange}
               />
               <select
                 name="service"

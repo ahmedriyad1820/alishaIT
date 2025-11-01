@@ -1535,6 +1535,7 @@ export default function Admin() {
                       <tr>
                         <th>Name</th>
                         <th>Email</th>
+                        <th>Phone Number</th>
                         <th>Subject</th>
                         <th>Date</th>
                         <th>Status</th>
@@ -1544,13 +1545,13 @@ export default function Admin() {
                     <tbody>
                       {loading ? (
                         <tr>
-                          <td colSpan="6" style={{ textAlign: 'center', padding: '20px' }}>
+                          <td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>
                             Loading contacts...
                           </td>
                         </tr>
                       ) : contacts.length === 0 ? (
                         <tr>
-                          <td colSpan="6" style={{ textAlign: 'center', padding: '20px' }}>
+                          <td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>
                             No contacts found
                           </td>
                         </tr>
@@ -1559,6 +1560,7 @@ export default function Admin() {
                           <tr key={contact._id}>
                             <td>{contact.name}</td>
                             <td>{contact.email}</td>
+                            <td>{contact.phoneNumber || '-'}</td>
                             <td>{contact.subject}</td>
                             <td>{formatDate(contact.createdAt)}</td>
                             <td>
@@ -1594,6 +1596,7 @@ export default function Admin() {
                       <tr>
                         <th>Name</th>
                         <th>Email</th>
+                        <th>Phone Number</th>
                         <th>Service</th>
                         <th>Amount</th>
                         <th>Date</th>
@@ -1604,13 +1607,13 @@ export default function Admin() {
                     <tbody>
                       {loading ? (
                         <tr>
-                          <td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>
+                          <td colSpan="8" style={{ textAlign: 'center', padding: '20px' }}>
                             Loading quotes...
                           </td>
                         </tr>
                       ) : quotes.length === 0 ? (
                         <tr>
-                          <td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>
+                          <td colSpan="8" style={{ textAlign: 'center', padding: '20px' }}>
                             No quotes found
                           </td>
                         </tr>
@@ -1619,6 +1622,7 @@ export default function Admin() {
                           <tr key={quote._id}>
                             <td>{quote.name}</td>
                             <td>{quote.email}</td>
+                            <td>{quote.phoneNumber || '-'}</td>
                             <td>{quote.service}</td>
                             <td>${quote.quotedAmount || 0}</td>
                             <td>{formatDate(quote.createdAt)}</td>
@@ -1667,6 +1671,10 @@ export default function Admin() {
                 <div>
                   <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '4px', display: 'block' }}>Email</label>
                   <p style={{ margin: 0, fontSize: '15px' }}>{viewingQuote.email}</p>
+                </div>
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '4px', display: 'block' }}>Phone Number</label>
+                  <p style={{ margin: 0, fontSize: '15px' }}>{viewingQuote.phoneNumber || '-'}</p>
                 </div>
                 <div>
                   <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '4px', display: 'block' }}>Service</label>
@@ -1738,6 +1746,7 @@ export default function Admin() {
                   <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '4px', display: 'block' }}>Client</label>
                   <p style={{ margin: 0, fontSize: '15px', padding: '8px', backgroundColor: '#f5f5f5', borderRadius: '6px' }}>
                     {updatingQuote.name} ({updatingQuote.email})
+                    {updatingQuote.phoneNumber && <><br /><span style={{ fontSize: '13px', color: '#666' }}>📞 {updatingQuote.phoneNumber}</span></>}
                   </p>
                 </div>
                 <div>
@@ -3331,6 +3340,115 @@ export default function Admin() {
                         </div>
                       </section>
 
+                      {/* Statistics Section - Editable */}
+                      <section className="statistics editable-section" data-section="statistics">
+                        <div className="container">
+                          <div className="stats-blocks">
+                            {(pageContent.statistics?.items || [
+                              { icon: '👥', label: 'Happy Clients', number: '12345' },
+                              { icon: '✓', label: 'Projects Done', number: '12345' },
+                              { icon: '🏆', label: 'Win Awards', number: '12345' }
+                            ]).map((item, index) => (
+                              <div 
+                                key={index} 
+                                className={`stat-block ${index % 2 === 0 ? 'stat-block-blue' : 'stat-block-white'}`}
+                              >
+                                <div className={`stat-icon ${index % 2 === 1 ? 'stat-icon-blue' : ''}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                  <input
+                                    type="text"
+                                    defaultValue={item.icon || '📊'}
+                                    placeholder="Icon (emoji)"
+                                    onChange={(e) => {
+                                      const items = [...(pageContent.statistics?.items || [
+                                        { icon: '👥', label: 'Happy Clients', number: '12345' },
+                                        { icon: '✓', label: 'Projects Done', number: '12345' },
+                                        { icon: '🏆', label: 'Win Awards', number: '12345' }
+                                      ])]
+                                      if (!items[index]) items[index] = { icon: '', label: '', number: '' }
+                                      items[index] = { ...items[index], icon: e.target.value }
+                                      handleContentChange('statistics', 'items', items)
+                                    }}
+                                    style={{
+                                      fontSize: '2rem',
+                                      width: '100%',
+                                      maxWidth: '60px',
+                                      textAlign: 'center',
+                                      border: index % 2 === 0 ? '2px dashed rgba(255,255,255,0.3)' : '2px dashed rgba(74,144,226,0.3)',
+                                      borderRadius: '50%',
+                                      background: index % 2 === 0 ? 'rgba(255,255,255,0.1)' : 'rgba(74,144,226,0.1)',
+                                      color: index % 2 === 0 ? 'white' : '#4A90E2',
+                                      padding: '8px',
+                                      outline: 'none'
+                                    }}
+                                  />
+                                </div>
+                                <input
+                                  type="text"
+                                  className="stat-label"
+                                  defaultValue={item.label || 'Statistic'}
+                                  placeholder="Label"
+                                  onChange={(e) => {
+                                    const items = [...(pageContent.statistics?.items || [
+                                      { icon: '👥', label: 'Happy Clients', number: '12345' },
+                                      { icon: '✓', label: 'Projects Done', number: '12345' },
+                                      { icon: '🏆', label: 'Win Awards', number: '12345' }
+                                    ])]
+                                    if (!items[index]) items[index] = { icon: '', label: '', number: '' }
+                                    items[index] = { ...items[index], label: e.target.value }
+                                    handleContentChange('statistics', 'items', items)
+                                  }}
+                                  style={{
+                                    fontSize: '1rem',
+                                    fontWeight: '500',
+                                    marginBottom: '10px',
+                                    width: '100%',
+                                    textAlign: 'center',
+                                    border: index % 2 === 0 ? '2px dashed rgba(255,255,255,0.2)' : '2px dashed rgba(74,144,226,0.2)',
+                                    borderRadius: '4px',
+                                    background: index % 2 === 0 ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.8)',
+                                    color: index % 2 === 0 ? 'white' : '#333',
+                                    padding: '6px 8px',
+                                    outline: 'none'
+                                  }}
+                                  onFocus={(e) => e.target.style.borderColor = index % 2 === 0 ? 'rgba(255,255,255,0.5)' : 'rgba(74,144,226,0.5)'}
+                                  onBlur={(e) => e.target.style.borderColor = index % 2 === 0 ? 'rgba(255,255,255,0.2)' : 'rgba(74,144,226,0.2)'}
+                                />
+                                <input
+                                  type="text"
+                                  className="stat-number"
+                                  defaultValue={item.number || '0'}
+                                  placeholder="Number"
+                                  onChange={(e) => {
+                                    const items = [...(pageContent.statistics?.items || [
+                                      { icon: '👥', label: 'Happy Clients', number: '12345' },
+                                      { icon: '✓', label: 'Projects Done', number: '12345' },
+                                      { icon: '🏆', label: 'Win Awards', number: '12345' }
+                                    ])]
+                                    if (!items[index]) items[index] = { icon: '', label: '', number: '' }
+                                    items[index] = { ...items[index], number: e.target.value }
+                                    handleContentChange('statistics', 'items', items)
+                                  }}
+                                  style={{
+                                    fontSize: '2.5rem',
+                                    fontWeight: '700',
+                                    width: '100%',
+                                    textAlign: 'center',
+                                    border: index % 2 === 0 ? '2px dashed rgba(255,255,255,0.2)' : '2px dashed rgba(74,144,226,0.2)',
+                                    borderRadius: '4px',
+                                    background: index % 2 === 0 ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.8)',
+                                    color: index % 2 === 0 ? 'white' : '#333',
+                                    padding: '6px 8px',
+                                    outline: 'none'
+                                  }}
+                                  onFocus={(e) => e.target.style.borderColor = index % 2 === 0 ? 'rgba(255,255,255,0.5)' : 'rgba(74,144,226,0.5)'}
+                                  onBlur={(e) => e.target.style.borderColor = index % 2 === 0 ? 'rgba(255,255,255,0.2)' : 'rgba(74,144,226,0.2)'}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </section>
+
                       {/* Services Section - Editable */}
                       <section className="services editable-section" data-section="services">
                         <div className="container">
@@ -3390,6 +3508,189 @@ export default function Admin() {
                               </div>
                               <h3 className="service-title editable-text" contentEditable="true">SEO Optimization</h3>
                               <p className="service-description editable-text" contentEditable="true">Improve your website's visibility and ranking in search engines.</p>
+                            </div>
+                          </div>
+                        </div>
+                      </section>
+
+                      {/* Why Choose Us Section - Editable */}
+                      <section className="why-choose-us editable-section" data-section="whyChooseUs">
+                        <div className="container">
+                          <div className="section-header">
+                            <span 
+                              className="section-subtitle editable-text" 
+                              data-field="whyChooseUs-subtitle"
+                              contentEditable="true"
+                              onBlur={(e) => handleContentChange('whyChooseUs', 'subtitle', e.target.textContent)}
+                            >
+                              {pageContent.whyChooseUs?.subtitle || 'WHY CHOOSE US'}
+                            </span>
+                            <h2 
+                              className="section-title editable-text" 
+                              data-field="whyChooseUs-title"
+                              contentEditable="true"
+                              onBlur={(e) => handleContentChange('whyChooseUs', 'title', e.target.textContent)}
+                            >
+                              {pageContent.whyChooseUs?.title || 'We Are Here to Grow Your Business Exponentially'}
+                            </h2>
+                            <div className="section-underline"></div>
+                          </div>
+                          
+                          <div className="why-choose-content">
+                            <div className="feature-column left-column">
+                              {(pageContent.whyChooseUs?.features || [
+                                { icon: '⚙️', title: 'Best In Industry', description: 'Magna sea eos sit dolor, ipsum amet lorem diam dolor eos et diam dolor' },
+                                { icon: '🏆', title: 'Award Winning', description: 'Magna sea eos sit dolor, ipsum amet lorem diam dolor eos et diam dolor' },
+                                { icon: '👥', title: 'Professional Staff', description: 'Magna sea eos sit dolor, ipsum amet lorem diam dolor eos et diam dolor' },
+                                { icon: '📞', title: '24/7 Support', description: 'Magna sea eos sit dolor, ipsum amet lorem diam dolor eos et diam dolor' }
+                              ]).slice(0, 2).map((f, idx) => (
+                                <div key={idx} className="feature-box editable-card">
+                                  <div className="feature-icon">
+                                    <div>
+                                      <input
+                                        type="text"
+                                        defaultValue={f.icon || '⚙️'}
+                                        onChange={(e) => {
+                                          const features = [...(pageContent.whyChooseUs?.features || [
+                                            { icon: '⚙️', title: 'Best In Industry', description: 'Magna sea eos sit dolor, ipsum amet lorem diam dolor eos et diam dolor' },
+                                            { icon: '🏆', title: 'Award Winning', description: 'Magna sea eos sit dolor, ipsum amet lorem diam dolor eos et diam dolor' },
+                                            { icon: '👥', title: 'Professional Staff', description: 'Magna sea eos sit dolor, ipsum amet lorem diam dolor eos et diam dolor' },
+                                            { icon: '📞', title: '24/7 Support', description: 'Magna sea eos sit dolor, ipsum amet lorem diam dolor eos et diam dolor' }
+                                          ])]
+                                          features[idx] = { ...features[idx], icon: e.target.value }
+                                          handleContentChange('whyChooseUs', 'features', features)
+                                        }}
+                                        style={{
+                                          fontSize: '1.5rem',
+                                          width: '100%',
+                                          textAlign: 'center',
+                                          border: '2px dashed rgba(74, 144, 226, 0.3)',
+                                          borderRadius: '4px',
+                                          background: 'rgba(255, 255, 255, 0.5)',
+                                          padding: '4px',
+                                          outline: 'none'
+                                        }}
+                                      />
+                                    </div>
+                                  </div>
+                                  <h3 
+                                    className="editable-text" 
+                                    contentEditable="true"
+                                    onBlur={(e) => {
+                                      const features = [...(pageContent.whyChooseUs?.features || [
+                                        { icon: '⚙️', title: 'Best In Industry', description: 'Magna sea eos sit dolor, ipsum amet lorem diam dolor eos et diam dolor' },
+                                        { icon: '🏆', title: 'Award Winning', description: 'Magna sea eos sit dolor, ipsum amet lorem diam dolor eos et diam dolor' },
+                                        { icon: '👥', title: 'Professional Staff', description: 'Magna sea eos sit dolor, ipsum amet lorem diam dolor eos et diam dolor' },
+                                        { icon: '📞', title: '24/7 Support', description: 'Magna sea eos sit dolor, ipsum amet lorem diam dolor eos et diam dolor' }
+                                      ])]
+                                      features[idx] = { ...features[idx], title: e.target.textContent }
+                                      handleContentChange('whyChooseUs', 'features', features)
+                                    }}
+                                  >
+                                    {f.title || 'Feature Title'}
+                                  </h3>
+                                  <p 
+                                    className="editable-text" 
+                                    contentEditable="true"
+                                    onBlur={(e) => {
+                                      const features = [...(pageContent.whyChooseUs?.features || [
+                                        { icon: '⚙️', title: 'Best In Industry', description: 'Magna sea eos sit dolor, ipsum amet lorem diam dolor eos et diam dolor' },
+                                        { icon: '🏆', title: 'Award Winning', description: 'Magna sea eos sit dolor, ipsum amet lorem diam dolor eos et diam dolor' },
+                                        { icon: '👥', title: 'Professional Staff', description: 'Magna sea eos sit dolor, ipsum amet lorem diam dolor eos et diam dolor' },
+                                        { icon: '📞', title: '24/7 Support', description: 'Magna sea eos sit dolor, ipsum amet lorem diam dolor eos et diam dolor' }
+                                      ])]
+                                      features[idx] = { ...features[idx], description: e.target.textContent }
+                                      handleContentChange('whyChooseUs', 'features', features)
+                                    }}
+                                  >
+                                    {f.description || 'Feature description'}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                            
+                            <div className="central-image">
+                              <img 
+                                src="/logo2.png" 
+                                alt="Company Logo"
+                                style={{ width: '80%', height: '80%', objectFit: 'contain', borderRadius: 16 }}
+                                readOnly
+                              />
+                            </div>
+                            
+                            <div className="feature-column right-column">
+                              {(pageContent.whyChooseUs?.features || [
+                                { icon: '⚙️', title: 'Best In Industry', description: 'Magna sea eos sit dolor, ipsum amet lorem diam dolor eos et diam dolor' },
+                                { icon: '🏆', title: 'Award Winning', description: 'Magna sea eos sit dolor, ipsum amet lorem diam dolor eos et diam dolor' },
+                                { icon: '👥', title: 'Professional Staff', description: 'Magna sea eos sit dolor, ipsum amet lorem diam dolor eos et diam dolor' },
+                                { icon: '📞', title: '24/7 Support', description: 'Magna sea eos sit dolor, ipsum amet lorem diam dolor eos et diam dolor' }
+                              ]).slice(2, 4).map((f, idx) => {
+                                const actualIdx = idx + 2
+                                return (
+                                  <div key={actualIdx} className="feature-box editable-card">
+                                    <div className="feature-icon">
+                                      <div>
+                                        <input
+                                          type="text"
+                                          defaultValue={f.icon || '⚙️'}
+                                          onChange={(e) => {
+                                            const features = [...(pageContent.whyChooseUs?.features || [
+                                              { icon: '⚙️', title: 'Best In Industry', description: 'Magna sea eos sit dolor, ipsum amet lorem diam dolor eos et diam dolor' },
+                                              { icon: '🏆', title: 'Award Winning', description: 'Magna sea eos sit dolor, ipsum amet lorem diam dolor eos et diam dolor' },
+                                              { icon: '👥', title: 'Professional Staff', description: 'Magna sea eos sit dolor, ipsum amet lorem diam dolor eos et diam dolor' },
+                                              { icon: '📞', title: '24/7 Support', description: 'Magna sea eos sit dolor, ipsum amet lorem diam dolor eos et diam dolor' }
+                                            ])]
+                                            features[actualIdx] = { ...features[actualIdx], icon: e.target.value }
+                                            handleContentChange('whyChooseUs', 'features', features)
+                                          }}
+                                          style={{
+                                            fontSize: '1.5rem',
+                                            width: '100%',
+                                            textAlign: 'center',
+                                            border: '2px dashed rgba(74, 144, 226, 0.3)',
+                                            borderRadius: '4px',
+                                            background: 'rgba(255, 255, 255, 0.5)',
+                                            padding: '4px',
+                                            outline: 'none'
+                                          }}
+                                        />
+                                      </div>
+                                    </div>
+                                    <h3 
+                                      className="editable-text" 
+                                      contentEditable="true"
+                                      onBlur={(e) => {
+                                        const features = [...(pageContent.whyChooseUs?.features || [
+                                          { icon: '⚙️', title: 'Best In Industry', description: 'Magna sea eos sit dolor, ipsum amet lorem diam dolor eos et diam dolor' },
+                                          { icon: '🏆', title: 'Award Winning', description: 'Magna sea eos sit dolor, ipsum amet lorem diam dolor eos et diam dolor' },
+                                          { icon: '👥', title: 'Professional Staff', description: 'Magna sea eos sit dolor, ipsum amet lorem diam dolor eos et diam dolor' },
+                                          { icon: '📞', title: '24/7 Support', description: 'Magna sea eos sit dolor, ipsum amet lorem diam dolor eos et diam dolor' }
+                                        ])]
+                                        features[actualIdx] = { ...features[actualIdx], title: e.target.textContent }
+                                        handleContentChange('whyChooseUs', 'features', features)
+                                      }}
+                                    >
+                                      {f.title || 'Feature Title'}
+                                    </h3>
+                                    <p 
+                                      className="editable-text" 
+                                      contentEditable="true"
+                                      onBlur={(e) => {
+                                        const features = [...(pageContent.whyChooseUs?.features || [
+                                          { icon: '⚙️', title: 'Best In Industry', description: 'Magna sea eos sit dolor, ipsum amet lorem diam dolor eos et diam dolor' },
+                                          { icon: '🏆', title: 'Award Winning', description: 'Magna sea eos sit dolor, ipsum amet lorem diam dolor eos et diam dolor' },
+                                          { icon: '👥', title: 'Professional Staff', description: 'Magna sea eos sit dolor, ipsum amet lorem diam dolor eos et diam dolor' },
+                                          { icon: '📞', title: '24/7 Support', description: 'Magna sea eos sit dolor, ipsum amet lorem diam dolor eos et diam dolor' }
+                                        ])]
+                                        features[actualIdx] = { ...features[actualIdx], description: e.target.textContent }
+                                        handleContentChange('whyChooseUs', 'features', features)
+                                      }}
+                                    >
+                                      {f.description || 'Feature description'}
+                                    </p>
+                                  </div>
+                                )
+                              })}
                             </div>
                           </div>
                         </div>

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { contactAPI } from '../api/client.js'
 
 export default function Contact() {
-  const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' })
+  const [form, setForm] = useState({ name: '', email: '', phoneNumber: '', subject: '', message: '' })
   const [sent, setSent] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -21,7 +21,7 @@ export default function Contact() {
       
       if (result.success) {
         setSent(true)
-        setForm({ name: '', email: '', subject: '', message: '' })
+        setForm({ name: '', email: '', phoneNumber: '', subject: '', message: '' })
         setTimeout(() => setSent(false), 3000)
         console.log('Contact saved to MongoDB:', result.data)
       } else {
@@ -110,6 +110,16 @@ export default function Contact() {
                       required
                     />
                   </div>
+                </div>
+                
+                <div className="form-group">
+                  <input
+                    type="tel"
+                    name="phoneNumber"
+                    placeholder="Contact Number"
+                    value={form.phoneNumber}
+                    onChange={handleChange}
+                  />
                 </div>
                 
                 <div className="form-group">
