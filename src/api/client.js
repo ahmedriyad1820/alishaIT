@@ -325,6 +325,30 @@ export const servicesAPI = {
   }
 }
 
+// Testimonials API
+export const testimonialsAPI = {
+  async list(activeOnly = false) {
+    const params = new URLSearchParams({ t: Date.now().toString() })
+    if (activeOnly) params.append('active', 'true')
+    return await apiCall(`/testimonials?${params.toString()}`)
+  },
+  async create(item) {
+    return await apiCall('/testimonials', {
+      method: 'POST',
+      body: JSON.stringify(item)
+    })
+  },
+  async update(id, item) {
+    return await apiCall(`/testimonials/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(item)
+    })
+  },
+  async delete(id) {
+    return await apiCall(`/testimonials/${id}`, { method: 'DELETE' })
+  }
+}
+
 // Blogs API
 export const blogAPI = {
   async list(publishedOnly = false) {

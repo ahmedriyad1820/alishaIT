@@ -297,6 +297,22 @@ blogSchema.index({ title: 'text', excerpt: 'text', content: 'text' })
 
 const Blog = mongoose.model('Blog', blogSchema)
 
+// Testimonial schema
+const testimonialSchema = new mongoose.Schema({
+  name: { type: String, required: true, trim: true },
+  profession: { type: String, required: true, trim: true },
+  quote: { type: String, required: true, trim: true },
+  avatar: { type: String, trim: true, default: '👤' },
+  avatarImage: { type: String, trim: true }, // URL to uploaded avatar image
+  rating: { type: Number, min: 1, max: 5, default: 5 },
+  isActive: { type: Boolean, default: true },
+  order: { type: Number, default: 0 },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
+})
+
+const Testimonial = mongoose.model('Testimonial', testimonialSchema)
+
 // Ensure blog indexes don't include legacy 'tags' text index
 const ensureBlogIndexes = async () => {
   try {
@@ -960,6 +976,89 @@ app.delete('/api/blogs/:id', requireAdmin, async (req, res) => {
     res.status(400).json({ success: false, error: error.message })
   }
 })
+
+// Testimonial routes
+// Public list: supports ?active=true
+app.get('/api/testimonials', async (req, res) => {
+  try {
+    res.set('Cache-Control', 'no-store')
+    res.set('Pragma', 'no-cache')
+    res.set('Expires', '0')
+    
+    const activeOnly = req.query.active === 'true'
+    const query = activeOnly ? { isActive: true } : {}
+    const testimonials = await Testimonial.find(query).sort({ order: 1, createdAt: -1 })
+    res.json({ success: true, data: testimonials })
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+// Create testimonial (admin)
+app.post('/api/testimonials', requireAdmin, async (req, res) => {
+  try {
+    console.log('POST /api/testimonials - Request received:', { body: req.body, session: req.session?.adminId })
+    const { name, profession, quote, avatar = '👤', avatarImage = '', rating = 5, isActive = true, order = 0 } = req.body
+    if (!name || !profession || !quote) {
+      console.error('Testimonial create validation failed:', req.body)
+      return res.status(400).json({ success: false, error: 'name, profession and quote are required' })
+    }
+    console.log('Creating testimonial with data:', { name, profession, quote, avatar, avatarImage, rating, isActive, order })
+    const testimonial = await Testimonial.create({ name, profession, quote, avatar, avatarImage, rating, isActive, order })
+    console.log('Testimonial created successfully:', testimonial._id)
+    res.json({ success: true, data: testimonial })
+  } catch (error) {
+    console.error('Testimonial create error:', error.message, error.stack)
+    console.error('Error details - body:', req.body)
+    res.status(400).json({ success: false, error: error.message || 'Failed to create testimonial' })
+  }
+})
+
+// Update testimonial (admin)
+app.put('/api/testimonials/:id', requireAdmin, async (req, res) => {
+  try {
+    console.log('PUT /api/testimonials/:id - Request received:', { id: req.params.id, body: req.body })
+    const { id } = req.params
+    const { name, profession, quote, avatar, avatarImage, rating, isActive, order } = req.body
+    
+    const update = {}
+    if (name !== undefined) update.name = name
+    if (profession !== undefined) update.profession = profession
+    if (quote !== undefined) update.quote = quote
+    if (avatar !== undefined) update.avatar = avatar
+    if (avatarImage !== undefined) update.avatarImage = avatarImage
+    if (rating !== undefined) update.rating = rating
+    if (isActive !== undefined) update.isActive = isActive
+    if (order !== undefined) update.order = typeof order === 'number' ? order : Number(order) || 0
+    update.updatedAt = new Date()
+    
+    const testimonial = await Testimonial.findByIdAndUpdate(id, update, { new: true })
+    if (!testimonial) {
+      console.error('Testimonial not found:', id)
+      return res.status(404).json({ success: false, error: 'Testimonial not found' })
+    }
+    console.log('Testimonial updated successfully:', testimonial._id)
+    res.json({ success: true, data: testimonial })
+  } catch (error) {
+    console.error('Testimonial update error:', error.message, error.stack)
+    res.status(400).json({ success: false, error: error.message })
+  }
+})
+
+// Delete testimonial (admin)
+app.delete('/api/testimonials/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params
+    const testimonial = await Testimonial.findByIdAndDelete(id)
+    if (!testimonial) {
+      return res.status(404).json({ success: false, error: 'Testimonial not found' })
+    }
+    res.json({ success: true, message: 'Testimonial deleted successfully' })
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message })
+  }
+})
+
 // Team Members - public list (supports ?active=true for only public members)
 app.get('/api/team-members', async (req, res) => {
   try {
@@ -1236,6 +1335,10 @@ const getDefaultPageContent = (pageName) => {
             answer: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.'
           }
         ]
+      },
+      testimonials: {
+        subtitle: 'TESTIMONIAL',
+        title: 'What Our Clients Say About Our Digital Services'
       }
     },
     'about': {

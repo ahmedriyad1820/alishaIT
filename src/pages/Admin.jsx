@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import AdminLogin from '../components/AdminLogin'
-import { contactAPI, quoteAPI, orderAPI, adminAPI, pageContentAPI, imageUploadAPI, projectItemsAPI, productItemsAPI, categoriesAPI, slidersAPI, sliderConfigAPI, teamMembersAPI, blogAPI, servicesAPI } from '../api/client.js'
+import { contactAPI, quoteAPI, orderAPI, adminAPI, pageContentAPI, imageUploadAPI, projectItemsAPI, productItemsAPI, categoriesAPI, slidersAPI, sliderConfigAPI, teamMembersAPI, blogAPI, servicesAPI, testimonialsAPI } from '../api/client.js'
 
 export default function Admin() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -63,6 +63,23 @@ export default function Admin() {
   const [editingBlog, setEditingBlog] = useState(null)
   const [showBlogEditModal, setShowBlogEditModal] = useState(false)
   const [uploadingBlogImage, setUploadingBlogImage] = useState(false)
+
+  // Testimonial management state
+  const [testimonials, setTestimonials] = useState([])
+  const [loadingTestimonials, setLoadingTestimonials] = useState(false)
+  const [showTestimonialForm, setShowTestimonialForm] = useState(false)
+  const [editingTestimonial, setEditingTestimonial] = useState(null)
+  const [uploadingTestimonialAvatar, setUploadingTestimonialAvatar] = useState(false)
+  const [testimonialForm, setTestimonialForm] = useState({
+    name: '',
+    profession: '',
+    quote: '',
+    avatar: '👤',
+    avatarImage: '',
+    rating: 5,
+    isActive: true,
+    order: 0
+  })
 
   // Check if user is already authenticated (via session cookie)
   useEffect(() => {
@@ -500,6 +517,99 @@ export default function Admin() {
       console.error('Service image upload failed', e)
     } finally {
       setUploadingServiceImage(false)
+    }
+    return ''
+  }
+
+  // Testimonials load/create/update/delete helpers
+  const loadTestimonials = async () => {
+    try {
+      setLoadingTestimonials(true)
+      const res = await testimonialsAPI.list()
+      if (res.success) setTestimonials(res.data)
+    } catch (e) { 
+      console.error('Load testimonials failed', e) 
+    } finally {
+      setLoadingTestimonials(false)
+    }
+  }
+
+  const createTestimonial = async (item) => {
+    try {
+      console.log('Creating testimonial:', item)
+      const res = await testimonialsAPI.create(item)
+      console.log('Create testimonial response:', res)
+      if (res.success) {
+        await loadTestimonials()
+        setPublishStatus('saved')
+        setTimeout(() => setPublishStatus(''), 2000)
+        setTestimonialForm({
+          name: '',
+          profession: '',
+          quote: '',
+          avatar: '👤',
+          avatarImage: '',
+          rating: 5,
+          isActive: true,
+          order: 0
+        })
+        setShowTestimonialForm(false)
+      } else {
+        setPublishStatus('error')
+        console.error('Failed to create testimonial:', res.error)
+        alert('Failed to create testimonial: ' + (res.error || 'Unknown error'))
+      }
+    } catch (e) {
+      setPublishStatus('error')
+      console.error('Error creating testimonial:', e)
+      alert('Error creating testimonial: ' + (e.message || 'Unknown error'))
+    }
+  }
+
+  const updateTestimonial = async (id, item) => {
+    try {
+      const res = await testimonialsAPI.update(id, item)
+      if (res.success) {
+        await loadTestimonials()
+        setPublishStatus('updated')
+        setTimeout(() => setPublishStatus(''), 2000)
+        setEditingTestimonial(null)
+        setShowTestimonialForm(false)
+      } else {
+        setPublishStatus('error')
+      }
+    } catch (e) {
+      setPublishStatus('error')
+      console.error('Error updating testimonial:', e)
+    }
+  }
+
+  const deleteTestimonial = async (id) => {
+    if (!confirm('Are you sure you want to delete this testimonial?')) return
+    try {
+      const res = await testimonialsAPI.delete(id)
+      if (res.success) {
+        await loadTestimonials()
+        setPublishStatus('deleted')
+        setTimeout(() => setPublishStatus(''), 2000)
+      } else {
+        setPublishStatus('error')
+      }
+    } catch (e) {
+      setPublishStatus('error')
+      console.error('Error deleting testimonial:', e)
+    }
+  }
+
+  const uploadTestimonialAvatar = async (file) => {
+    try {
+      setUploadingTestimonialAvatar(true)
+      const res = await imageUploadAPI.upload(file)
+      if (res.success) return res.data.url
+    } catch (e) {
+      console.error('Testimonial avatar upload failed', e)
+    } finally {
+      setUploadingTestimonialAvatar(false)
     }
     return ''
   }
@@ -1297,6 +1407,13 @@ export default function Admin() {
                 >
                   <span className="sidebar-icon">📝</span>
                   <span className="sidebar-text">Blogs</span>
+                </button>
+                <button 
+                  className={`sidebar-item ${activeTab === 'testimonials' ? 'active' : ''}`}
+                  onClick={() => { setActiveTab('testimonials'); loadTestimonials(); }}
+                >
+                  <span className="sidebar-icon">💬</span>
+                  <span className="sidebar-text">Testimonials</span>
                 </button>
                 <button 
                   className={`sidebar-item ${activeTab === 'pages' ? 'active' : ''}`}
@@ -2725,6 +2842,254 @@ export default function Admin() {
               </div>
             )}
 
+            {activeTab === 'testimonials' && (
+              <div className="testimonials-management">
+                <div className="section-header">
+                  <h2>💬 Testimonials Management</h2>
+                  <div className="header-actions">
+                    <button className="btn-secondary" onClick={loadTestimonials}>
+                      <span>🔄</span> Reload
+                    </button>
+                    {publishStatus === 'saved' && <span className="success-message">✅ Testimonial saved!</span>}
+                    {publishStatus === 'updated' && <span className="success-message">✅ Testimonial updated!</span>}
+                    {publishStatus === 'deleted' && <span className="success-message">✅ Testimonial deleted!</span>}
+                    {publishStatus === 'error' && <span className="error-message">❌ Operation failed</span>}
+                  </div>
+                </div>
+
+                <div className="add-testimonial-card">
+                  <div className="card-header">
+                    <h3>➕ Add New Testimonial</h3>
+                  </div>
+                  <div className="form-grid">
+                    <div className="form-group">
+                      <label>Client Name *</label>
+                      <input 
+                        id="test-name" 
+                        placeholder="Enter client name" 
+                        value={testimonialForm.name}
+                        onChange={(e) => setTestimonialForm({ ...testimonialForm, name: e.target.value })}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Profession *</label>
+                      <input 
+                        id="test-profession" 
+                        placeholder="e.g., CEO, Manager" 
+                        value={testimonialForm.profession}
+                        onChange={(e) => setTestimonialForm({ ...testimonialForm, profession: e.target.value })}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Rating</label>
+                      <select 
+                        id="test-rating"
+                        value={testimonialForm.rating}
+                        onChange={(e) => setTestimonialForm({ ...testimonialForm, rating: parseInt(e.target.value) })}
+                      >
+                        <option value="5">5 ⭐</option>
+                        <option value="4">4 ⭐</option>
+                        <option value="3">3 ⭐</option>
+                        <option value="2">2 ⭐</option>
+                        <option value="1">1 ⭐</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label>Avatar (Emoji)</label>
+                      <input 
+                        id="test-avatar" 
+                        placeholder="👤" 
+                        value={testimonialForm.avatar}
+                        onChange={(e) => setTestimonialForm({ ...testimonialForm, avatar: e.target.value || '👤' })}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Avatar Image</label>
+                      <input 
+                        id="test-avatar-image" 
+                        type="file" 
+                        accept="image/*"
+                        onChange={async (e) => {
+                          const f = e.target.files[0]
+                          if (f) {
+                            const url = await uploadTestimonialAvatar(f)
+                            if (url) setTestimonialForm({ ...testimonialForm, avatarImage: url })
+                          }
+                        }}
+                      />
+                      {uploadingTestimonialAvatar && <div className="upload-status">📤 Uploading...</div>}
+                      {testimonialForm.avatarImage && (
+                        <img 
+                          src={`http://localhost:3001${testimonialForm.avatarImage}`} 
+                          alt="Avatar preview" 
+                          style={{ width: '60px', height: '60px', borderRadius: '50%', marginTop: '8px', objectFit: 'cover' }}
+                        />
+                      )}
+                    </div>
+                    <div className="form-group">
+                      <label>Order</label>
+                      <input 
+                        id="test-order" 
+                        type="number" 
+                        defaultValue="0"
+                        value={testimonialForm.order}
+                        onChange={(e) => setTestimonialForm({ ...testimonialForm, order: parseInt(e.target.value || '0', 10) })}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Active</label>
+                      <input 
+                        id="test-active" 
+                        type="checkbox" 
+                        checked={testimonialForm.isActive}
+                        onChange={(e) => setTestimonialForm({ ...testimonialForm, isActive: e.target.checked })}
+                      />
+                    </div>
+                    <div className="form-group full-width">
+                      <label>Quote *</label>
+                      <textarea 
+                        id="test-quote" 
+                        rows="4" 
+                        placeholder="Client testimonial quote"
+                        value={testimonialForm.quote}
+                        onChange={(e) => setTestimonialForm({ ...testimonialForm, quote: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <div className="form-actions">
+                    <button 
+                      className="btn-success" 
+                      onClick={() => {
+                        if (!testimonialForm.name || !testimonialForm.profession || !testimonialForm.quote) {
+                          alert('Please fill in Name, Profession, and Quote')
+                          return
+                        }
+                        if (editingTestimonial) {
+                          updateTestimonial(editingTestimonial._id, testimonialForm)
+                        } else {
+                          createTestimonial(testimonialForm)
+                        }
+                      }}
+                    >
+                      {editingTestimonial ? 'Update Testimonial' : 'Add Testimonial'}
+                    </button>
+                    {editingTestimonial && (
+                      <button 
+                        className="btn-secondary" 
+                        onClick={() => {
+                          setEditingTestimonial(null)
+                          setTestimonialForm({
+                            name: '',
+                            profession: '',
+                            quote: '',
+                            avatar: '👤',
+                            avatarImage: '',
+                            rating: 5,
+                            isActive: true,
+                            order: 0
+                          })
+                          document.getElementById('test-avatar-image').value = ''
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="products-table-card">
+                  <div className="card-header">
+                    <h3>📋 Testimonials List</h3>
+                  </div>
+                  <div className="table-container">
+                    {loadingTestimonials ? (
+                      <div style={{ padding: '40px', textAlign: 'center' }}>Loading testimonials...</div>
+                    ) : testimonials.length === 0 ? (
+                      <div style={{ padding: '40px', textAlign: 'center' }}>No testimonials yet. Add one above!</div>
+                    ) : (
+                      <table className="products-table">
+                        <thead>
+                          <tr>
+                            <th style={{ width: 80 }}>Order</th>
+                            <th style={{ width: 80 }}>Avatar</th>
+                            <th>Name</th>
+                            <th>Profession</th>
+                            <th style={{ width: 100 }}>Rating</th>
+                            <th style={{ width: 150 }}>Quote Preview</th>
+                            <th style={{ width: 100 }}>Active</th>
+                            <th style={{ width: 220 }}>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {testimonials.map(test => (
+                            <tr key={test._id}>
+                              <td style={{ textAlign: 'center' }}>{test.order || 0}</td>
+                              <td style={{ textAlign: 'center' }}>
+                                {test.avatarImage ? (
+                                  <img 
+                                    src={`http://localhost:3001${test.avatarImage}`} 
+                                    alt={test.name} 
+                                    style={{ width: 50, height: 50, borderRadius: '50%', objectFit: 'cover' }} 
+                                  />
+                                ) : (
+                                  <span style={{ fontSize: '2rem' }}>{test.avatar || '👤'}</span>
+                                )}
+                              </td>
+                              <td>{test.name}</td>
+                              <td>{test.profession}</td>
+                              <td style={{ textAlign: 'center' }}>
+                                {Array(test.rating || 5).fill(0).map((_, i) => <span key={i}>⭐</span>)}
+                              </td>
+                              <td style={{ fontSize: '12px', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {test.quote?.substring(0, 50)}...
+                              </td>
+                              <td>
+                                <button 
+                                  className={`toggle-btn ${test.isActive ? 'on' : 'off'}`} 
+                                  onClick={() => updateTestimonial(test._id, { isActive: !test.isActive })}
+                                >
+                                  {test.isActive ? 'Active' : 'Inactive'}
+                                </button>
+                              </td>
+                              <td>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                  <button 
+                                    className="secondary-btn" 
+                                    onClick={() => {
+                                      setEditingTestimonial(test)
+                                      setTestimonialForm({
+                                        name: test.name || '',
+                                        profession: test.profession || '',
+                                        quote: test.quote || '',
+                                        avatar: test.avatar || '👤',
+                                        avatarImage: test.avatarImage || '',
+                                        rating: test.rating || 5,
+                                        isActive: test.isActive !== false,
+                                        order: test.order || 0
+                                      })
+                                      setShowTestimonialForm(true)
+                                    }}
+                                  >
+                                    Edit
+                                  </button>
+                                  <button 
+                                    className="btn-delete" 
+                                    onClick={() => deleteTestimonial(test._id)}
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {activeTab === 'categories' && (
               <div className="categories-management">
                 <div className="section-header">
@@ -3764,6 +4129,34 @@ export default function Admin() {
                                 <button className="submit-btn" type="submit">Request A Quote</button>
                               </form>
                             </div>
+                          </div>
+                        </div>
+                      </section>
+
+                      {/* Testimonials Section - Editable */}
+                      <section className="testimonials editable-section" data-section="testimonials">
+                        <div className="container">
+                          <div className="testimonials-header">
+                            <span 
+                              className="testimonials-subtitle editable-text" 
+                              data-field="testimonials-subtitle"
+                              contentEditable="true"
+                              onBlur={(e) => handleContentChange('testimonials', 'subtitle', e.target.textContent)}
+                            >
+                              {pageContent.testimonials?.subtitle || 'TESTIMONIAL'}
+                            </span>
+                            <h2 
+                              className="testimonials-title editable-text" 
+                              data-field="testimonials-title"
+                              contentEditable="true"
+                              onBlur={(e) => handleContentChange('testimonials', 'title', e.target.textContent)}
+                            >
+                              {pageContent.testimonials?.title || 'What Our Clients Say About Our Digital Services'}
+                            </h2>
+                            <div className="testimonials-underline"></div>
+                          </div>
+                          <div style={{ padding: '40px', textAlign: 'center', color: '#666', fontSize: '14px', background: '#f8f9fa', borderRadius: '8px', marginTop: '40px' }}>
+                            💡 Testimonials are managed from the <strong>Testimonials</strong> tab. Edit subtitle and title above.
                           </div>
                         </div>
                       </section>

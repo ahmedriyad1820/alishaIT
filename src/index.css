@@ -1134,12 +1134,76 @@ body {
   margin: 0 auto;
 }
 
+.testimonials-slider-container {
+  position: relative;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
 .testimonials-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 30px;
   max-width: 1200px;
   margin: 0 auto;
+  transition: opacity 0.3s ease;
+}
+
+.testimonial-nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #4A90E2;
+  color: white;
+  border: none;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  font-size: 24px;
+  cursor: pointer;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 15px rgba(74, 144, 226, 0.3);
+  transition: all 0.3s ease;
+}
+
+.testimonial-nav-btn:hover {
+  background: #357ABD;
+  transform: translateY(-50%) scale(1.1);
+  box-shadow: 0 6px 20px rgba(74, 144, 226, 0.4);
+}
+
+.testimonial-nav-prev {
+  left: -25px;
+}
+
+.testimonial-nav-next {
+  right: -25px;
+}
+
+.testimonial-indicators {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 40px;
+}
+
+.testimonial-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid #4A90E2;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  padding: 0;
+}
+
+.testimonial-indicator.active {
+  background: #4A90E2;
+  transform: scale(1.2);
 }
 
 .testimonials-actions {
@@ -1252,7 +1316,13 @@ body {
   color: #343a40;
   line-height: 1.6;
   font-size: 0.95rem;
-  margin: 0;
+  margin: 0 0 15px 0;
+}
+
+.testimonial-rating {
+  display: flex;
+  gap: 2px;
+  margin-top: 10px;
 }
 
 /* Team Members Section */
@@ -2648,6 +2718,20 @@ body {
   .testimonials-grid {
     grid-template-columns: 1fr;
     gap: 20px;
+  }
+
+  .testimonial-nav-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+  }
+
+  .testimonial-nav-prev {
+    left: -20px;
+  }
+
+  .testimonial-nav-next {
+    right: -20px;
   }
   
   .see-all-btn,
