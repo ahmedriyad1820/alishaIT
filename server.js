@@ -397,6 +397,45 @@ app.get('/api/contacts', async (req, res) => {
   }
 })
 
+app.get('/api/contacts/:id', requireAdmin, async (req, res) => {
+  try {
+    console.log('GET /api/contacts/:id - Request received:', { id: req.params.id, session: req.session?.adminId })
+    const { id } = req.params
+    // Validate MongoDB ObjectId format
+    if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
+      console.log('Invalid contact ID format:', id)
+      return res.status(400).json({ success: false, error: 'Invalid contact ID format' })
+    }
+    
+    const contact = await Contact.findById(id)
+    console.log('Contact found:', contact ? 'Yes' : 'No', 'ID:', id)
+    if (!contact) {
+      return res.status(404).json({ success: false, error: 'Contact not found' })
+    }
+    res.json({ success: true, data: contact })
+  } catch (error) {
+    console.error('Error fetching contact:', error)
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+app.delete('/api/contacts/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params
+    if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
+      return res.status(400).json({ success: false, error: 'Invalid contact ID format' })
+    }
+    const contact = await Contact.findByIdAndDelete(id)
+    if (!contact) {
+      return res.status(404).json({ success: false, error: 'Contact not found' })
+    }
+    res.json({ success: true, message: 'Contact deleted successfully' })
+  } catch (error) {
+    console.error('Error deleting contact:', error)
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
 // Quote routes
 app.post('/api/quotes', async (req, res) => {
   try {
@@ -498,6 +537,75 @@ app.get('/api/orders', async (req, res) => {
     const orders = await Order.find().sort({ createdAt: -1 })
     res.json({ success: true, data: orders })
   } catch (error) {
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+app.get('/api/orders/:id', requireAdmin, async (req, res) => {
+  try {
+    console.log('GET /api/orders/:id - Request received:', { id: req.params.id, session: req.session?.adminId })
+    const { id } = req.params
+    // Validate MongoDB ObjectId format
+    if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
+      console.log('Invalid order ID format:', id)
+      return res.status(400).json({ success: false, error: 'Invalid order ID format' })
+    }
+    
+    const order = await Order.findById(id)
+    console.log('Order found:', order ? 'Yes' : 'No', 'ID:', id)
+    if (!order) {
+      return res.status(404).json({ success: false, error: 'Order not found' })
+    }
+    res.json({ success: true, data: order })
+  } catch (error) {
+    console.error('Error fetching order:', error)
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+app.put('/api/orders/:id', requireAdmin, async (req, res) => {
+  try {
+    console.log('PUT /api/orders/:id - Request received:', { id: req.params.id, body: req.body })
+    const { id } = req.params
+    // Validate MongoDB ObjectId format
+    if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
+      console.log('Invalid order ID format:', id)
+      return res.status(400).json({ success: false, error: 'Invalid order ID format' })
+    }
+    
+    const { status, amount, quantity } = req.body
+    const update = {}
+    if (status !== undefined) update.status = status
+    if (amount !== undefined) update.amount = typeof amount === 'number' ? amount : parseFloat(amount) || 0
+    if (quantity !== undefined) update.quantity = typeof quantity === 'number' ? quantity : parseInt(quantity) || 1
+    update.updatedAt = new Date()
+    
+    const order = await Order.findByIdAndUpdate(id, update, { new: true })
+    if (!order) {
+      console.error('Order not found:', id)
+      return res.status(404).json({ success: false, error: 'Order not found' })
+    }
+    console.log('Order updated successfully:', order._id)
+    res.json({ success: true, data: order })
+  } catch (error) {
+    console.error('Error updating order:', error.message, error.stack)
+    res.status(400).json({ success: false, error: error.message })
+  }
+})
+
+app.delete('/api/orders/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params
+    if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
+      return res.status(400).json({ success: false, error: 'Invalid order ID format' })
+    }
+    const order = await Order.findByIdAndDelete(id)
+    if (!order) {
+      return res.status(404).json({ success: false, error: 'Order not found' })
+    }
+    res.json({ success: true, message: 'Order deleted successfully' })
+  } catch (error) {
+    console.error('Error deleting order:', error)
     res.status(500).json({ success: false, error: error.message })
   }
 })
@@ -1291,6 +1399,16 @@ const getDefaultPageContent = (pageName) => {
         title: 'We Provide The Best Service For You',
         description: 'We offer comprehensive IT solutions tailored to your business needs. Our expert team delivers cutting-edge technology services.'
       },
+      workProcess: {
+        subtitle: 'WORK PROCESS',
+        title: 'Step By Step Simple & Clean Working Process',
+        steps: [
+          { title: 'Research', description: 'Eos vero dolore eirmod diam duo lorem magna sit sea dolore sanctus sed et', icon: '🔍' },
+          { title: 'Concept', description: 'Eos vero dolore eirmod diam duo lorem magna sit sea dolore sanctus sed et', icon: '📊' },
+          { title: 'Development', description: 'Eos vero dolore eirmod diam duo lorem magna sit sea dolore sanctus sed et', icon: '</>' },
+          { title: 'Finalization', description: 'Eos vero dolore eirmod diam duo lorem magna sit sea dolore sanctus sed et', icon: '✓' }
+        ]
+      },
       whyChooseUs: {
         subtitle: 'WHY CHOOSE US',
         title: 'We Are Here to Grow Your Business Exponentially',
@@ -1375,6 +1493,30 @@ const getDefaultPageContent = (pageName) => {
           title: 'Lorem ipsum dolor',
           description: 'Lorem ipsum dolor sit amet elit ornare velit non'
         }
+      }
+    },
+    'contact': {
+      hero: {
+        title: 'If You Have Any Query, Feel Free To Contact Us'
+      },
+      info: {
+        phoneLabel: 'Call to ask any question',
+        phone: '+012 345 6789',
+        emailLabel: 'Email to get free quote',
+        email: 'info@example.com',
+        addressLabel: 'Visit our office',
+        address: '123 Street, NY, USA'
+      },
+      form: {
+        title: 'Send Us A Message',
+        description: 'We\'d love to hear from you. Send us a message and we\'ll respond as soon as possible.',
+        buttonText: 'SEND MESSAGE'
+      },
+      map: {
+        title: 'Find Us Here',
+        description: 'Visit our office or get directions to our location.',
+        location: '📍 New York, United States',
+        copyright: 'Map data ©2025 Google Terms'
       }
     }
   }

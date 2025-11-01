@@ -754,18 +754,18 @@ body {
   color: white;
 }
 
-/* Work Process Section */
+/* Work Process Section (Homepage) - Original Design */
 .work-process {
   padding: 100px 0;
   background: #fff;
 }
 
-.process-header {
+.work-process .process-header {
   text-align: center;
   margin-bottom: 80px;
 }
 
-.process-subtitle {
+.work-process .process-subtitle {
   color: #4A90E2;
   font-size: 14px;
   font-weight: 600;
@@ -775,7 +775,7 @@ body {
   display: block;
 }
 
-.process-title {
+.work-process .process-title {
   font-size: 3rem;
   font-weight: 700;
   color: #1a1a1a;
@@ -783,24 +783,24 @@ body {
   margin-bottom: 20px;
 }
 
-.process-underline {
+.work-process .process-underline {
   display: flex;
   justify-content: center;
   gap: 8px;
   margin-top: 15px;
 }
 
-.underline-line {
+.work-process .underline-line {
   width: 40px;
   height: 3px;
   background: #4A90E2;
 }
 
-.underline-line.short {
+.work-process .underline-line.short {
   width: 20px;
 }
 
-.process-steps {
+.work-process .process-steps {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -810,7 +810,7 @@ body {
   flex-wrap: wrap;
 }
 
-.process-step {
+.work-process .process-step {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -819,7 +819,7 @@ body {
   min-width: 200px;
 }
 
-.step-card {
+.work-process .step-card {
   background: white;
   padding: 30px 20px;
   text-align: center;
@@ -833,18 +833,18 @@ body {
   justify-content: center;
 }
 
-.step-card:hover {
+.work-process .step-card:hover {
   transform: translateY(-2px);
 }
 
-.step-icon {
+.work-process .step-icon {
   margin-bottom: 20px;
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
-.icon-square {
+.work-process .icon-square {
   width: 50px;
   height: 50px;
   background: #4A90E2;
@@ -858,11 +858,11 @@ body {
   transition: transform 0.3s ease;
 }
 
-.icon-square:hover {
+.work-process .icon-square:hover {
   transform: rotate(45deg) scale(1.1);
 }
 
-.icon-symbol {
+.work-process .icon-symbol {
   color: white;
   font-size: 1.2rem;
   font-weight: bold;
@@ -872,7 +872,7 @@ body {
   transform: rotate(-45deg);
 }
 
-.step-title {
+.work-process .step-title {
   font-size: 1.1rem;
   font-weight: 700;
   color: #1a1a1a;
@@ -881,7 +881,7 @@ body {
   width: 100%;
 }
 
-.step-description {
+.work-process .step-description {
   color: #666;
   line-height: 1.5;
   font-size: 0.9rem;
@@ -889,7 +889,7 @@ body {
   width: 100%;
 }
 
-.step-arrow {
+.work-process .step-arrow {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -902,58 +902,56 @@ body {
   flex-shrink: 0;
 }
 
-.arrow-symbol {
+.work-process .arrow-symbol {
   color: #999;
   font-size: 1.2rem;
   font-weight: bold;
 }
 
-/* Responsive design for work process */
+/* Work Process Section (Homepage) Responsive */
 @media (max-width: 768px) {
-  .process-steps {
+  .work-process .process-steps {
     flex-direction: column;
     gap: 20px;
   }
   
-  .process-step {
+  .work-process .process-step {
     width: 100%;
     max-width: 300px;
   }
   
-  .step-arrow {
+  .work-process .step-arrow {
     transform: rotate(90deg);
     margin: 10px 0;
   }
   
-  .step-card {
+  .work-process .step-card {
     min-width: 250px;
     max-width: 300px;
+  }
+  
+  .work-process .process-title {
+    font-size: 2rem;
   }
 }
 
 @media (max-width: 480px) {
-  .process-title {
+  .work-process .process-title {
     font-size: 2rem;
   }
   
-  .step-card {
+  .work-process .step-card {
     padding: 20px 15px;
     min-width: 200px;
   }
   
-  .icon-square {
+  .work-process .icon-square {
     width: 45px;
     height: 45px;
-    transform: rotate(45deg);
   }
   
-  .icon-square:hover {
-    transform: rotate(45deg) scale(1.1);
-  }
-  
-  .icon-symbol {
+  .work-process .icon-symbol {
     font-size: 1rem;
-    transform: rotate(-45deg);
   }
 }
 
@@ -3222,19 +3220,38 @@ body {
   font-size: 0.95rem;
 }
 
-/* Services Process Section */
+/* Services Process Section - Glassmorphic Design */
 .services-process {
   padding: 100px 0;
-  background: #fff;
+  background: linear-gradient(135deg, #4A90E2 0%, #357ABD 100%);
+  position: relative;
+  overflow: hidden;
 }
 
-.process-header {
+.services-process::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url('data:image/svg+xml,<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="grid" width="100" height="100" patternUnits="userSpaceOnUse"><path d="M 100 0 L 0 0 0 100" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+  opacity: 0.3;
+}
+
+.services-process .container {
+  position: relative;
+  z-index: 1;
+}
+
+.services-process .process-header {
   text-align: center;
   margin-bottom: 80px;
+  color: white;
 }
 
-.process-subtitle {
-  color: #4A90E2;
+.services-process .process-subtitle {
+  color: rgba(255, 255, 255, 0.9);
   font-size: 14px;
   font-weight: 600;
   letter-spacing: 2px;
@@ -3243,60 +3260,172 @@ body {
   display: block;
 }
 
-.process-title {
+.services-process .process-title {
   font-size: 2.5rem;
   font-weight: 700;
-  color: #1a1a1a;
   line-height: 1.2;
   margin-bottom: 15px;
+  background: linear-gradient(135deg, #ffffff 0%, rgba(255, 255, 255, 0.9) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
 }
 
-.process-underline {
+.services-process .process-underline {
   width: 60px;
   height: 3px;
-  background: #4A90E2;
+  background: rgba(255, 255, 255, 0.8);
   margin: 0 auto;
 }
 
-.process-steps {
+.services-process .process-steps {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 40px;
+  gap: 30px;
   max-width: 1200px;
   margin: 0 auto;
 }
 
-.process-step {
+.services-process .process-step {
+  padding: 50px 30px;
   text-align: center;
-  padding: 30px 20px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 20px;
+  color: white;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  min-height: 320px;
+  overflow: hidden;
 }
 
-.step-number {
-  width: 60px;
-  height: 60px;
-  background: #4A90E2;
-  color: white;
+.services-process .process-step::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transition: left 0.5s;
+}
+
+.services-process .process-step:hover::before {
+  left: 100%;
+}
+
+.services-process .process-step:hover {
+  transform: translateY(-10px) scale(1.02);
+  background: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.services-process .step-number {
+  width: 90px;
+  height: 90px;
   border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(10px);
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2), inset 0 0 20px rgba(255, 255, 255, 0.1);
+  color: white;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0 0 15px 0;
+  transition: all 0.4s ease;
+  flex-shrink: 0;
+}
+
+.services-process .process-step:hover .step-number {
+  transform: rotate(360deg) scale(1.1);
+  background: rgba(255, 255, 255, 0.35);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3), inset 0 0 30px rgba(255, 255, 255, 0.2);
+}
+
+.services-process .process-step h3 {
   font-size: 1.5rem;
   font-weight: 700;
-  margin: 0 auto 20px auto;
+  margin: 0 0 12px 0;
+  opacity: 0.95;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  line-height: 1.3;
+  color: white;
 }
 
-.process-step h3 {
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: #1a1a1a;
-  margin: 0 0 15px 0;
-}
-
-.process-step p {
-  color: #666;
-  line-height: 1.6;
+.services-process .process-step p {
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.7;
+  opacity: 0.85;
   margin: 0;
   font-size: 0.95rem;
+}
+
+/* Services Process Section Responsive */
+@media (max-width: 992px) {
+  .services-process .process-steps {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 25px;
+  }
+  
+  .services-process .process-step {
+    min-height: 280px;
+  }
+  
+  .services-process .process-title {
+    font-size: 2.2rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .services-process {
+    padding: 80px 0;
+  }
+  
+  .services-process .process-header {
+    margin-bottom: 60px;
+  }
+  
+  .services-process .process-title {
+    font-size: 1.8rem;
+  }
+  
+  .services-process .process-steps {
+    grid-template-columns: 1fr;
+    gap: 20px;
+    padding: 0 15px;
+  }
+  
+  .services-process .process-step {
+    padding: 40px 25px;
+    min-height: 280px;
+    border-radius: 15px;
+  }
+  
+  .services-process .step-number {
+    width: 80px;
+    height: 80px;
+    font-size: 1.8rem;
+  }
+  
+  .services-process .process-step h3 {
+    font-size: 1.3rem;
+  }
+  
+  .services-process .process-step p {
+    font-size: 0.9rem;
+  }
 }
 
 /* Services Page Responsive */

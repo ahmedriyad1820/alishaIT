@@ -37,6 +37,14 @@ export const contactAPI = {
 
   async getAll() {
     return await apiCall('/contacts')
+  },
+
+  async get(id) {
+    return await apiCall(`/contacts/${id}`)
+  },
+
+  async delete(id) {
+    return await apiCall(`/contacts/${id}`, { method: 'DELETE' })
   }
 }
 
@@ -82,6 +90,21 @@ export const orderAPI = {
 
   async getAll() {
     return await apiCall('/orders')
+  },
+
+  async get(id) {
+    return await apiCall(`/orders/${id}`)
+  },
+
+  async update(id, data) {
+    return await apiCall(`/orders/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    })
+  },
+
+  async delete(id) {
+    return await apiCall(`/orders/${id}`, { method: 'DELETE' })
   }
 }
 

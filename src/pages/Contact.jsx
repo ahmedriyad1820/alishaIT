@@ -1,7 +1,13 @@
 import { useState } from 'react'
+import { useContent } from '../contexts/ContentContext'
 import { contactAPI } from '../api/client.js'
 
 export default function Contact() {
+  const { content } = useContent()
+  const contactPage = content.contact || {}
+  const hero = contactPage.hero || {}
+  const info = contactPage.info || {}
+  
   const [form, setForm] = useState({ name: '', email: '', phoneNumber: '', subject: '', message: '' })
   const [sent, setSent] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -41,7 +47,7 @@ export default function Contact() {
       <section className="contact-hero">
         <div className="hero-overlay"></div>
         <div className="hero-content">
-          <h1 className="hero-title">If You Have Any Query, Feel Free To Contact Us</h1>
+          <h1 className="hero-title">{hero.title || 'If You Have Any Query, Feel Free To Contact Us'}</h1>
           <div className="hero-underline"></div>
         </div>
       </section>
@@ -55,8 +61,8 @@ export default function Contact() {
                 <span className="icon-phone">📞</span>
               </div>
               <div className="method-content">
-                <p className="method-text">Call to ask any question</p>
-                <span className="method-value">+012 345 6789</span>
+                <p className="method-text">{info.phoneLabel || 'Call to ask any question'}</p>
+                <span className="method-value">{info.phone || '+012 345 6789'}</span>
               </div>
             </div>
 
@@ -65,8 +71,8 @@ export default function Contact() {
                 <span className="icon-email">✉️</span>
               </div>
               <div className="method-content">
-                <p className="method-text">Email to get free quote</p>
-                <span className="method-value">info@example.com</span>
+                <p className="method-text">{info.emailLabel || 'Email to get free quote'}</p>
+                <span className="method-value">{info.email || 'info@example.com'}</span>
               </div>
             </div>
 
@@ -75,8 +81,8 @@ export default function Contact() {
                 <span className="icon-location">📍</span>
               </div>
               <div className="method-content">
-                <p className="method-text">Visit our office</p>
-                <span className="method-value">123 Street, NY, USA</span>
+                <p className="method-text">{info.addressLabel || 'Visit our office'}</p>
+                <span className="method-value">{info.address || '123 Street, NY, USA'}</span>
               </div>
             </div>
           </div>
@@ -88,6 +94,10 @@ export default function Contact() {
         <div className="container">
           <div className="contact-layout">
             <div className="contact-form-container">
+              <div className="form-header">
+                <h2 className="form-title">{contactPage.form?.title || 'Send Us A Message'}</h2>
+                <p className="form-description">{contactPage.form?.description || 'We\'d love to hear from you. Send us a message and we\'ll respond as soon as possible.'}</p>
+              </div>
               <form className="contact-form" onSubmit={handleSubmit}>
                 <div className="form-row">
                   <div className="form-group half">
@@ -145,7 +155,7 @@ export default function Contact() {
                 </div>
                 
                 <button type="submit" className="submit-btn" disabled={loading}>
-                  {loading ? 'SENDING...' : 'SEND'}
+                  {loading ? 'SENDING...' : (contactPage.form?.buttonText || 'SEND')}
                 </button>
                 
                 {error && <p className="error-message">{error}</p>}
@@ -154,19 +164,31 @@ export default function Contact() {
             </div>
 
             <div className="contact-map-container">
+              <div className="map-header">
+                <h3 className="map-title">{contactPage.map?.title || 'Find Us Here'}</h3>
+                <p className="map-description">{contactPage.map?.description || 'Visit our office or get directions to our location.'}</p>
+              </div>
               <div className="map-wrapper">
                 <div className="map-placeholder">
-                  <div className="map-content">
-                    <div className="map-location">📍 New York, United States</div>
-                    <div className="map-controls">
-                      <div className="zoom-controls">
-                        <button className="zoom-btn">+</button>
-                        <button className="zoom-btn">-</button>
+                  {contactPage.map?.image ? (
+                    <img 
+                      src={`http://localhost:3001${contactPage.map.image}`} 
+                      alt="Map Location"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '12px' }}
+                    />
+                  ) : (
+                    <div className="map-content">
+                      <div className="map-location">{contactPage.map?.location || '📍 New York, United States'}</div>
+                      <div className="map-controls">
+                        <div className="zoom-controls">
+                          <button className="zoom-btn">+</button>
+                          <button className="zoom-btn">-</button>
+                        </div>
+                        <div className="directions-btn">🧭</div>
                       </div>
-                      <div className="directions-btn">🧭</div>
+                      <div className="map-copyright">{contactPage.map?.copyright || 'Map data ©2025 Google Terms'}</div>
                     </div>
-                    <div className="map-copyright">Map data ©2025 Google Terms</div>
-                  </div>
+                  )}
                 </div>
               </div>
             </div>

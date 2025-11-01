@@ -1,5 +1,10 @@
+import { useContent } from '../contexts/ContentContext'
+
 export default function WorkProcess() {
-  const processSteps = [
+  const { content } = useContent()
+  const workProcess = content.home?.workProcess || {}
+  
+  const defaultSteps = [
     {
       title: "Research",
       description: "Eos vero dolore eirmod diam duo lorem magna sit sea dolore sanctus sed et",
@@ -21,13 +26,15 @@ export default function WorkProcess() {
       icon: "✓"
     }
   ]
+  
+  const processSteps = workProcess.steps || defaultSteps
 
   return (
     <section className="work-process">
       <div className="container">
         <div className="process-header">
-          <span className="process-subtitle">WORK PROCESS</span>
-          <h2 className="process-title">Step By Step Simple & Clean Working Process</h2>
+          <span className="process-subtitle">{workProcess.subtitle || 'WORK PROCESS'}</span>
+          <h2 className="process-title">{workProcess.title || 'Step By Step Simple & Clean Working Process'}</h2>
           <div className="process-underline">
             <div className="underline-line"></div>
             <div className="underline-line short"></div>
@@ -40,11 +47,11 @@ export default function WorkProcess() {
               <div className="step-card">
                 <div className="step-icon">
                   <div className="icon-square">
-                    <span className="icon-symbol">{step.icon}</span>
+                    <span className="icon-symbol">{step.icon || '📋'}</span>
                   </div>
                 </div>
-                <h3 className="step-title">{step.title}</h3>
-                <p className="step-description">{step.description}</p>
+                <h3 className="step-title">{step.title || 'Step Title'}</h3>
+                <p className="step-description">{step.description || 'Step description'}</p>
               </div>
               {index < processSteps.length - 1 && (
                 <div className="step-arrow">

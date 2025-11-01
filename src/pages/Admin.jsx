@@ -17,6 +17,13 @@ export default function Admin() {
   const [viewingQuote, setViewingQuote] = useState(null)
   const [updatingQuote, setUpdatingQuote] = useState(null)
   const [quoteForm, setQuoteForm] = useState({ status: 'pending', quotedAmount: 0, remark: '' })
+  const [viewingContact, setViewingContact] = useState(null)
+  const [viewingOrder, setViewingOrder] = useState(null)
+  const [updatingOrder, setUpdatingOrder] = useState(null)
+  const [orderForm, setOrderForm] = useState({ status: 'pending', amount: 0, quantity: 1 })
+  const [editingTeamMember, setEditingTeamMember] = useState(null)
+  const [teamPhotoAdjustment, setTeamPhotoAdjustment] = useState({ scale: 100, x: 0, y: 0 })
+  const [editingTestimonialModal, setEditingTestimonialModal] = useState(null)
   const [loading, setLoading] = useState(false)
   const [projectItems, setProjectItems] = useState([])
   const [editingProject, setEditingProject] = useState(null)
@@ -165,6 +172,208 @@ export default function Admin() {
     setPublishStatus('')
     setViewingQuote(null)
     setUpdatingQuote(null)
+    setViewingContact(null)
+    setViewingOrder(null)
+    setUpdatingOrder(null)
+    setEditingTeamMember(null)
+    setTeamPhotoAdjustment({ scale: 100, x: 0, y: 0 })
+    setEditingTestimonialModal(null)
+  }
+
+  // Testimonial edit with modal
+  const handleEditTestimonial = (testimonial) => {
+    setEditingTestimonialModal({ ...testimonial })
+  }
+
+  const handleUpdateTestimonial = async () => {
+    if (!editingTestimonialModal) return
+    
+    try {
+      const updateData = {
+        name: editingTestimonialModal.name,
+        profession: editingTestimonialModal.profession,
+        quote: editingTestimonialModal.quote,
+        avatar: editingTestimonialModal.avatar || '👤',
+        avatarImage: editingTestimonialModal.avatarImage || '',
+        rating: editingTestimonialModal.rating || 5,
+        isActive: editingTestimonialModal.isActive !== false,
+        order: editingTestimonialModal.order || 0
+      }
+      
+      const res = await testimonialsAPI.update(editingTestimonialModal._id, updateData)
+      if (res.success) {
+        await loadTestimonials()
+        setEditingTestimonialModal(null)
+        alert('Testimonial updated successfully!')
+      } else {
+        alert('Failed to update: ' + (res.error || 'Unknown error'))
+      }
+    } catch (error) {
+      console.error('Error updating testimonial:', error)
+      alert('Error updating testimonial: ' + (error.message || 'Unknown error'))
+    }
+  }
+
+  // Order view and update functions
+  const handleViewOrder = async (orderId) => {
+    try {
+      console.log('Fetching order with ID:', orderId)
+      console.log('Order ID type:', typeof orderId)
+      const orderIdStr = String(orderId)
+      if (!orderIdStr.match(/^[0-9a-fA-F]{24}$/)) {
+        console.error('Invalid order ID format:', orderIdStr)
+        alert('Invalid order ID format. Please refresh the page and try again.')
+        return
+      }
+      const result = await orderAPI.get(orderIdStr)
+      console.log('Order API result:', result)
+      if (result.success) {
+        setViewingOrder(result.data)
+      } else {
+        console.error('Order fetch failed:', result.error)
+        alert('Failed to load order: ' + (result.error || 'Unknown error'))
+      }
+    } catch (error) {
+      console.error('Error viewing order:', error)
+      alert('Error loading order: ' + (error.message || 'Unknown error'))
+    }
+  }
+
+  const handleUpdateOrderClick = (order) => {
+    if (!order._id) {
+      alert('Error: Order ID is missing')
+      console.error('Order object:', order)
+      return
+    }
+    setUpdatingOrder(order)
+    setOrderForm({
+      status: order.status || 'pending',
+      amount: order.amount || 0,
+      quantity: order.quantity || 1
+    })
+  }
+
+  const handleUpdateOrder = async () => {
+    if (!updatingOrder || !updatingOrder._id) {
+      alert('Error: Order data is missing')
+      return
+    }
+    
+    try {
+      const updateData = {
+        status: orderForm.status,
+        amount: parseFloat(orderForm.amount) || 0,
+        quantity: parseInt(orderForm.quantity) || 1
+      }
+      console.log('Updating order:', updatingOrder._id, updateData)
+      const result = await orderAPI.update(updatingOrder._id, updateData)
+      if (result.success) {
+        await loadDashboardData()
+        setUpdatingOrder(null)
+        setOrderForm({ status: 'pending', amount: 0, quantity: 1 })
+        alert('Order updated successfully!')
+      } else {
+        alert('Failed to update order: ' + (result.error || 'Unknown error'))
+      }
+    } catch (error) {
+      console.error('Error updating order:', error)
+      alert('Error updating order: ' + (error.message || 'Unknown error'))
+    }
+  }
+
+  const handleDeleteContact = async (contactId) => {
+    if (!confirm('Are you sure you want to delete this contact?')) return
+    
+    try {
+      const result = await contactAPI.delete(contactId)
+      if (result.success) {
+        await loadDashboardData()
+        alert('Contact deleted successfully!')
+      } else {
+        alert('Failed to delete contact: ' + (result.error || 'Unknown error'))
+      }
+    } catch (error) {
+      console.error('Error deleting contact:', error)
+      alert('Error deleting contact: ' + (error.message || 'Unknown error'))
+    }
+  }
+
+  const handleDeleteOrder = async (orderId) => {
+    if (!confirm('Are you sure you want to delete this order?')) return
+    
+    try {
+      const result = await orderAPI.delete(orderId)
+      if (result.success) {
+        await loadDashboardData()
+        alert('Order deleted successfully!')
+      } else {
+        alert('Failed to delete order: ' + (result.error || 'Unknown error'))
+      }
+    } catch (error) {
+      console.error('Error deleting order:', error)
+      alert('Error deleting order: ' + (error.message || 'Unknown error'))
+    }
+  }
+
+  // Team member edit with modal
+  const handleEditTeamMember = (member) => {
+    setEditingTeamMember({ ...member })
+    setTeamPhotoAdjustment(member.photoAdjustment || { scale: 100, x: 0, y: 0 })
+  }
+
+  const handleUpdateTeamMember = async () => {
+    if (!editingTeamMember) return
+    
+    try {
+      const updateData = {
+        name: editingTeamMember.name,
+        designation: editingTeamMember.designation,
+        bio: editingTeamMember.bio || '',
+        photo: editingTeamMember.photo || '',
+        isActive: editingTeamMember.isActive !== false,
+        order: editingTeamMember.order || 0,
+        socials: editingTeamMember.socials || { facebook: '', twitter: '', linkedin: '' },
+        photoAdjustment: teamPhotoAdjustment // Save adjustment settings
+      }
+      
+      const res = await teamMembersAPI.update(editingTeamMember._id, updateData)
+      if (res.success) {
+        await loadTeam()
+        setEditingTeamMember(null)
+        setTeamPhotoAdjustment({ scale: 100, x: 0, y: 0 })
+        alert('Team member updated successfully!')
+      } else {
+        alert('Failed to update: ' + (res.error || 'Unknown error'))
+      }
+    } catch (error) {
+      console.error('Error updating team member:', error)
+      alert('Error updating team member: ' + (error.message || 'Unknown error'))
+    }
+  }
+
+  // Contact view function
+  const handleViewContact = async (contactId) => {
+    try {
+      console.log('Fetching contact with ID:', contactId)
+      console.log('Contact ID type:', typeof contactId)
+      console.log('Contact ID length:', contactId?.length)
+      if (!contactId || !contactId.match(/^[0-9a-fA-F]{24}$/)) {
+        console.error('Invalid contact ID format:', contactId)
+        alert('Invalid contact ID format. Please refresh the page and try again.')
+        return
+      }
+      const result = await contactAPI.get(contactId)
+      console.log('Contact API result:', result)
+      if (result.success) {
+        setViewingContact(result.data)
+      } else {
+        console.error('Contact fetch failed:', result.error)
+        alert('Failed to load contact: ' + (result.error || 'Unknown error'))
+      }
+    } catch (error) {
+      console.error('Error viewing contact:', error)
+      alert('Error loading contact: ' + (error.message || 'Unknown error'))
+    }
   }
 
   // Quote view and update functions
@@ -379,6 +588,7 @@ export default function Admin() {
   }
 
   const startEditTeam = (m) => {
+    // Keep for inline editing if needed, but also support modal
     setEditingTeamId(m._id)
     setNewTeam({
       name: m.name || '',
@@ -829,8 +1039,12 @@ export default function Admin() {
       } else if (editingPage === 'contact') {
         if (normalizedSection.includes('info') || normalizedSection === 'content' || normalizedSection === 'contactContent') {
           targetSection = 'info'
-        } else if (normalizedSection === 'hero') {
+        } else if (normalizedSection === 'hero' || normalizedSection === 'contactHero') {
           targetSection = 'hero'
+        } else if (normalizedSection === 'form' || normalizedSection === 'contactForm') {
+          targetSection = 'form'
+        } else if (normalizedSection === 'map' || normalizedSection === 'contactMap') {
+          targetSection = 'map'
         }
       }
 
@@ -859,6 +1073,14 @@ export default function Admin() {
         // Special mapping: About page hero "About Us" -> hero.title (not heroTitle)
         if (editingPage === 'about' && targetSection === 'hero' && key === 'heroTitle') {
           key = 'title'
+        }
+        // Special mapping for contact page: info-phoneLabel -> phoneLabel, info-phone -> phone, etc.
+        if (editingPage === 'contact' && targetSection === 'info') {
+          if (key.startsWith('info')) {
+            // Remove "info" prefix and lowercase first letter: infoPhoneLabel -> phoneLabel
+            const withoutPrefix = key.substring(4)
+            key = withoutPrefix.charAt(0).toLowerCase() + withoutPrefix.substring(1)
+          }
         }
         if (value !== '') {
           sections[targetSection][key] = value
@@ -1627,7 +1849,7 @@ export default function Admin() {
                                 </button>
                               </td>
                               <td>
-                                <button className="secondary-btn" onClick={() => startEditTeam(m)}>Edit</button>
+                                <button className="secondary-btn" onClick={() => handleEditTeamMember(m)}>Edit</button>
                                 <button className="btn-danger" onClick={() => deleteTeamMember(m._id)} style={{ marginLeft: 8 }}>Delete</button>
                               </td>
                             </tr>
@@ -1689,8 +1911,37 @@ export default function Admin() {
                               </span>
                             </td>
                             <td>
-                              <button className="btn-sm">View</button>
-                              <button className="btn-sm">Reply</button>
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <button 
+                                  className="btn-sm" 
+                                  onClick={() => {
+                                    const contactId = contact._id ? String(contact._id) : null
+                                    if (contactId) {
+                                      console.log('View button clicked for contact:', contactId)
+                                      handleViewContact(contactId)
+                                    } else {
+                                      alert('Contact ID not available')
+                                    }
+                                  }}
+                                >
+                                  View
+                                </button>
+                                <button className="btn-sm">Reply</button>
+                                <button 
+                                  className="btn-sm btn-danger" 
+                                  onClick={() => {
+                                    const contactId = contact._id ? String(contact._id) : null
+                                    if (contactId) {
+                                      handleDeleteContact(contactId)
+                                    } else {
+                                      alert('Contact ID not available')
+                                    }
+                                  }}
+                                  style={{ background: '#dc3545', color: 'white', border: 'none' }}
+                                >
+                                  Delete
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))
@@ -1752,15 +2003,30 @@ export default function Admin() {
                               </span>
                             </td>
                             <td>
-                              <button className="btn-sm" onClick={() => {
-                                if (!quote._id) {
-                                  alert('Error: Quote ID is missing')
-                                  console.error('Quote object:', quote)
-                                  return
-                                }
-                                handleViewQuote(quote._id)
-                              }}>View</button>
-                              <button className="btn-sm" onClick={() => handleUpdateQuoteClick(quote)}>Update</button>
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <button className="btn-sm" onClick={() => {
+                                  if (!quote._id) {
+                                    alert('Error: Quote ID is missing')
+                                    console.error('Quote object:', quote)
+                                    return
+                                  }
+                                  handleViewQuote(quote._id)
+                                }}>View</button>
+                                <button className="btn-sm" onClick={() => handleUpdateQuoteClick(quote)}>Update</button>
+                                <button 
+                                  className="btn-sm btn-danger" 
+                                  onClick={() => {
+                                    if (!quote._id) {
+                                      alert('Error: Quote ID is missing')
+                                      return
+                                    }
+                                    handleDeleteQuote(quote._id)
+                                  }}
+                                  style={{ background: '#dc3545', color: 'white', border: 'none' }}
+                                >
+                                  Delete
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))
@@ -1844,6 +2110,737 @@ export default function Admin() {
                 }
               }}>Delete</button>
               <button className="btn-primary" onClick={() => setViewingQuote(null)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Contact Modal */}
+      {viewingContact && (
+        <div className="modal-overlay" onClick={() => setViewingContact(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+            <div className="modal-header">
+              <h2>Contact Message Details</h2>
+              <button className="modal-close" onClick={() => setViewingContact(null)}>×</button>
+            </div>
+            <div className="modal-body" style={{ padding: '1.5rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '4px', display: 'block' }}>Name</label>
+                  <p style={{ margin: 0, fontSize: '15px' }}>{viewingContact.name}</p>
+                </div>
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '4px', display: 'block' }}>Email</label>
+                  <p style={{ margin: 0, fontSize: '15px' }}>
+                    <a href={`mailto:${viewingContact.email}`} style={{ color: '#2196F3', textDecoration: 'none' }}>
+                      {viewingContact.email}
+                    </a>
+                  </p>
+                </div>
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '4px', display: 'block' }}>Phone Number</label>
+                  <p style={{ margin: 0, fontSize: '15px' }}>
+                    {viewingContact.phoneNumber ? (
+                      <a href={`tel:${viewingContact.phoneNumber}`} style={{ color: '#2196F3', textDecoration: 'none' }}>
+                        {viewingContact.phoneNumber}
+                      </a>
+                    ) : '-'}
+                  </p>
+                </div>
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '4px', display: 'block' }}>Subject</label>
+                  <p style={{ margin: 0, fontSize: '15px', fontWeight: '600' }}>{viewingContact.subject}</p>
+                </div>
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '4px', display: 'block' }}>Message</label>
+                  <p style={{ margin: 0, fontSize: '15px', padding: '12px', backgroundColor: '#f5f5f5', borderRadius: '6px', whiteSpace: 'pre-wrap', minHeight: '60px' }}>{viewingContact.message}</p>
+                </div>
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '4px', display: 'block' }}>Status</label>
+                  <span 
+                    className="status-badge" 
+                    style={{ backgroundColor: getStatusColor(viewingContact.status), padding: '6px 12px', borderRadius: '4px', fontSize: '12px', fontWeight: '600' }}
+                  >
+                    {viewingContact.status?.toUpperCase() || 'NEW'}
+                  </span>
+                </div>
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '4px', display: 'block' }}>Received Date</label>
+                  <p style={{ margin: 0, fontSize: '13px', color: '#999' }}>{formatDate(viewingContact.createdAt)}</p>
+                </div>
+                {viewingContact.updatedAt && viewingContact.updatedAt !== viewingContact.createdAt && (
+                  <div>
+                    <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '4px', display: 'block' }}>Last Updated</label>
+                    <p style={{ margin: 0, fontSize: '13px', color: '#999' }}>{formatDate(viewingContact.updatedAt)}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="modal-footer" style={{ padding: '1rem 1.5rem', borderTop: '1px solid #e0e0e0', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button 
+                className="btn-primary" 
+                onClick={() => {
+                  window.location.href = `mailto:${viewingContact.email}?subject=Re: ${encodeURIComponent(viewingContact.subject || 'Contact Inquiry')}`
+                }}
+              >
+                Reply via Email
+              </button>
+              <button className="btn-secondary" onClick={() => setViewingContact(null)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Order Modal */}
+      {viewingOrder && (
+        <div className="modal-overlay" onClick={() => setViewingOrder(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+            <div className="modal-header">
+              <h2>Order Details</h2>
+              <button className="modal-close" onClick={() => setViewingOrder(null)}>×</button>
+            </div>
+            <div className="modal-body" style={{ padding: '1.5rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '4px', display: 'block' }}>Order ID</label>
+                  <p style={{ margin: 0, fontSize: '13px', fontFamily: 'monospace', color: '#999' }}>{viewingOrder._id}</p>
+                </div>
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '4px', display: 'block' }}>Name</label>
+                  <p style={{ margin: 0, fontSize: '15px' }}>{viewingOrder.name}</p>
+                </div>
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '4px', display: 'block' }}>Email</label>
+                  <p style={{ margin: 0, fontSize: '15px' }}>
+                    <a href={`mailto:${viewingOrder.email}`} style={{ color: '#2196F3', textDecoration: 'none' }}>
+                      {viewingOrder.email}
+                    </a>
+                  </p>
+                </div>
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '4px', display: 'block' }}>Product</label>
+                  <p style={{ margin: 0, fontSize: '15px', fontWeight: '600' }}>{viewingOrder.product}</p>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div>
+                    <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '4px', display: 'block' }}>Quantity</label>
+                    <p style={{ margin: 0, fontSize: '15px' }}>{viewingOrder.quantity}</p>
+                  </div>
+                  <div>
+                    <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '4px', display: 'block' }}>Amount</label>
+                    <p style={{ margin: 0, fontSize: '15px', fontWeight: '600', color: '#2196F3' }}>${viewingOrder.amount || 0}</p>
+                  </div>
+                </div>
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '4px', display: 'block' }}>Status</label>
+                  <span 
+                    className="status-badge" 
+                    style={{ backgroundColor: getStatusColor(viewingOrder.status), padding: '6px 12px', borderRadius: '4px', fontSize: '12px', fontWeight: '600' }}
+                  >
+                    {viewingOrder.status?.toUpperCase() || 'PENDING'}
+                  </span>
+                </div>
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '4px', display: 'block' }}>Order Date</label>
+                  <p style={{ margin: 0, fontSize: '13px', color: '#999' }}>{formatDate(viewingOrder.createdAt)}</p>
+                </div>
+                {viewingOrder.updatedAt && viewingOrder.updatedAt !== viewingOrder.createdAt && (
+                  <div>
+                    <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '4px', display: 'block' }}>Last Updated</label>
+                    <p style={{ margin: 0, fontSize: '13px', color: '#999' }}>{formatDate(viewingOrder.updatedAt)}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="modal-footer" style={{ padding: '1rem 1.5rem', borderTop: '1px solid #e0e0e0', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button className="btn-secondary" onClick={() => {
+                handleUpdateOrderClick(viewingOrder)
+                setViewingOrder(null)
+              }}>Update Order</button>
+              <button className="btn-primary" onClick={() => setViewingOrder(null)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Update Order Modal */}
+      {updatingOrder && (
+        <div className="modal-overlay" onClick={() => setUpdatingOrder(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <h2>Update Order</h2>
+              <button className="modal-close" onClick={() => setUpdatingOrder(null)}>×</button>
+            </div>
+            <div className="modal-body" style={{ padding: '1.5rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '6px', display: 'block' }}>Customer Name</label>
+                  <p style={{ margin: 0, fontSize: '14px', padding: '10px', backgroundColor: '#f5f5f5', borderRadius: '6px' }}>{updatingOrder.name}</p>
+                </div>
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '6px', display: 'block' }}>Email</label>
+                  <p style={{ margin: 0, fontSize: '14px', padding: '10px', backgroundColor: '#f5f5f5', borderRadius: '6px' }}>{updatingOrder.email}</p>
+                </div>
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '6px', display: 'block' }}>Product</label>
+                  <p style={{ margin: 0, fontSize: '14px', padding: '10px', backgroundColor: '#f5f5f5', borderRadius: '6px' }}>{updatingOrder.product}</p>
+                </div>
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '6px', display: 'block' }}>Status *</label>
+                  <select
+                    value={orderForm.status}
+                    onChange={(e) => setOrderForm({ ...orderForm, status: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      border: '1px solid #ddd',
+                      borderRadius: '6px',
+                      fontSize: '14px'
+                    }}
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="processing">Processing</option>
+                    <option value="completed">Completed</option>
+                    <option value="cancelled">Cancelled</option>
+                    <option value="shipped">Shipped</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '6px', display: 'block' }}>Quantity *</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={orderForm.quantity}
+                    onChange={(e) => setOrderForm({ ...orderForm, quantity: parseInt(e.target.value) || 1 })}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      border: '1px solid #ddd',
+                      borderRadius: '6px',
+                      fontSize: '14px'
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '6px', display: 'block' }}>Amount ($) *</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={orderForm.amount}
+                    onChange={(e) => setOrderForm({ ...orderForm, amount: parseFloat(e.target.value) || 0 })}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      border: '1px solid #ddd',
+                      borderRadius: '6px',
+                      fontSize: '14px'
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer" style={{ padding: '1rem 1.5rem', borderTop: '1px solid #e0e0e0', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button className="btn-secondary" onClick={() => setUpdatingOrder(null)}>Cancel</button>
+              <button className="btn-primary" onClick={handleUpdateOrder}>Save Changes</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Team Member Modal */}
+      {editingTeamMember && (
+        <div className="modal-overlay" onClick={() => setEditingTeamMember(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div className="modal-header">
+              <h2>Edit Team Member</h2>
+              <button className="modal-close" onClick={() => setEditingTeamMember(null)}>×</button>
+            </div>
+            <div className="modal-body" style={{ padding: '1.5rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                {/* Photo Section with Adjustment Controls */}
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '8px', display: 'block' }}>Photo</label>
+                  <div style={{ 
+                    position: 'relative', 
+                    width: '200px', 
+                    height: '200px', 
+                    margin: '0 auto',
+                    border: '2px solid #e0e0e0',
+                    borderRadius: '50%',
+                    overflow: 'hidden',
+                    backgroundColor: '#f5f5f5'
+                  }}>
+                    {editingTeamMember.photo ? (
+                      <img 
+                        src={editingTeamMember.photo} 
+                        alt={editingTeamMember.name}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                          objectPosition: `${50 + (teamPhotoAdjustment.x || 0)}% ${50 + (teamPhotoAdjustment.y || 0)}%`,
+                          transform: `scale(${(teamPhotoAdjustment.scale || 100) / 100})`,
+                          transition: 'transform 0.2s ease'
+                        }}
+                      />
+                    ) : (
+                      <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '3rem' }}>
+                        👤
+                      </div>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0]
+                        if (!file) return
+                        const url = await uploadTeamImage(file)
+                        if (url) {
+                          setEditingTeamMember({ ...editingTeamMember, photo: url })
+                          setTeamPhotoAdjustment({ scale: 100, x: 0, y: 0 })
+                        }
+                      }}
+                      style={{ display: 'none' }}
+                      id="team-photo-upload-edit"
+                    />
+                    <label 
+                      htmlFor="team-photo-upload-edit"
+                      style={{
+                        position: 'absolute',
+                        bottom: '10px',
+                        right: '10px',
+                        background: '#2196F3',
+                        color: 'white',
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontSize: '12px',
+                        fontWeight: '600'
+                      }}
+                    >
+                      📷 Change
+                    </label>
+                  </div>
+                  
+                  {/* Photo Adjustment Controls */}
+                  {editingTeamMember.photo && (
+                    <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: '#f9f9f9', borderRadius: '8px' }}>
+                      <div style={{ marginBottom: '12px' }}>
+                        <label style={{ fontWeight: '600', color: '#666', fontSize: '12px', marginBottom: '4px', display: 'block' }}>Zoom: {teamPhotoAdjustment.scale}%</label>
+                        <input
+                          type="range"
+                          min="50"
+                          max="200"
+                          value={teamPhotoAdjustment.scale || 100}
+                          onChange={(e) => setTeamPhotoAdjustment({ ...teamPhotoAdjustment, scale: parseInt(e.target.value) })}
+                          style={{ width: '100%' }}
+                        />
+                      </div>
+                      <div style={{ marginBottom: '12px' }}>
+                        <label style={{ fontWeight: '600', color: '#666', fontSize: '12px', marginBottom: '4px', display: 'block' }}>Position X: {teamPhotoAdjustment.x}%</label>
+                        <input
+                          type="range"
+                          min="-50"
+                          max="50"
+                          value={teamPhotoAdjustment.x || 0}
+                          onChange={(e) => setTeamPhotoAdjustment({ ...teamPhotoAdjustment, x: parseInt(e.target.value) })}
+                          style={{ width: '100%' }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontWeight: '600', color: '#666', fontSize: '12px', marginBottom: '4px', display: 'block' }}>Position Y: {teamPhotoAdjustment.y}%</label>
+                        <input
+                          type="range"
+                          min="-50"
+                          max="50"
+                          value={teamPhotoAdjustment.y || 0}
+                          onChange={(e) => setTeamPhotoAdjustment({ ...teamPhotoAdjustment, y: parseInt(e.target.value) })}
+                          style={{ width: '100%' }}
+                        />
+                      </div>
+                      <button
+                        onClick={() => setTeamPhotoAdjustment({ scale: 100, x: 0, y: 0 })}
+                        style={{
+                          marginTop: '8px',
+                          padding: '6px 12px',
+                          background: '#f5f5f5',
+                          border: '1px solid #ddd',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontSize: '12px'
+                        }}
+                      >
+                        Reset
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Name */}
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '6px', display: 'block' }}>Name *</label>
+                  <input
+                    type="text"
+                    value={editingTeamMember.name || ''}
+                    onChange={(e) => setEditingTeamMember({ ...editingTeamMember, name: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      border: '1px solid #ddd',
+                      borderRadius: '6px',
+                      fontSize: '14px'
+                    }}
+                    placeholder="Full name"
+                  />
+                </div>
+
+                {/* Designation */}
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '6px', display: 'block' }}>Designation *</label>
+                  <input
+                    type="text"
+                    value={editingTeamMember.designation || ''}
+                    onChange={(e) => setEditingTeamMember({ ...editingTeamMember, designation: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      border: '1px solid #ddd',
+                      borderRadius: '6px',
+                      fontSize: '14px'
+                    }}
+                    placeholder="Designation"
+                  />
+                </div>
+
+                {/* Bio */}
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '6px', display: 'block' }}>Bio</label>
+                  <textarea
+                    value={editingTeamMember.bio || ''}
+                    onChange={(e) => setEditingTeamMember({ ...editingTeamMember, bio: e.target.value })}
+                    rows="4"
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      border: '1px solid #ddd',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      fontFamily: 'inherit',
+                      resize: 'vertical'
+                    }}
+                    placeholder="Short bio"
+                  />
+                </div>
+
+                {/* Social Links */}
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '8px', display: 'block' }}>Social Links</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <input
+                      type="url"
+                      value={editingTeamMember.socials?.facebook || ''}
+                      onChange={(e) => setEditingTeamMember({ 
+                        ...editingTeamMember, 
+                        socials: { ...editingTeamMember.socials, facebook: e.target.value } 
+                      })}
+                      placeholder="Facebook URL"
+                      style={{
+                        width: '100%',
+                        padding: '8px',
+                        border: '1px solid #ddd',
+                        borderRadius: '6px',
+                        fontSize: '13px'
+                      }}
+                    />
+                    <input
+                      type="url"
+                      value={editingTeamMember.socials?.twitter || ''}
+                      onChange={(e) => setEditingTeamMember({ 
+                        ...editingTeamMember, 
+                        socials: { ...editingTeamMember.socials, twitter: e.target.value } 
+                      })}
+                      placeholder="Twitter URL"
+                      style={{
+                        width: '100%',
+                        padding: '8px',
+                        border: '1px solid #ddd',
+                        borderRadius: '6px',
+                        fontSize: '13px'
+                      }}
+                    />
+                    <input
+                      type="url"
+                      value={editingTeamMember.socials?.linkedin || ''}
+                      onChange={(e) => setEditingTeamMember({ 
+                        ...editingTeamMember, 
+                        socials: { ...editingTeamMember.socials, linkedin: e.target.value } 
+                      })}
+                      placeholder="LinkedIn URL"
+                      style={{
+                        width: '100%',
+                        padding: '8px',
+                        border: '1px solid #ddd',
+                        borderRadius: '6px',
+                        fontSize: '13px'
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Order */}
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '6px', display: 'block' }}>Order</label>
+                  <input
+                    type="number"
+                    value={editingTeamMember.order || 0}
+                    onChange={(e) => setEditingTeamMember({ ...editingTeamMember, order: parseInt(e.target.value) || 0 })}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      border: '1px solid #ddd',
+                      borderRadius: '6px',
+                      fontSize: '14px'
+                    }}
+                  />
+                </div>
+
+                {/* Active Status */}
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '8px', display: 'block' }}>Status</label>
+                  <button
+                    className={`toggle-btn ${editingTeamMember.isActive ? 'on' : 'off'}`}
+                    onClick={() => setEditingTeamMember({ ...editingTeamMember, isActive: !editingTeamMember.isActive })}
+                    style={{ width: 'auto', padding: '8px 16px' }}
+                  >
+                    {editingTeamMember.isActive ? 'Active' : 'Inactive'}
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer" style={{ padding: '1rem 1.5rem', borderTop: '1px solid #e0e0e0', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button className="btn-secondary" onClick={() => setEditingTeamMember(null)}>Cancel</button>
+              <button className="btn-primary" onClick={handleUpdateTeamMember}>Save Changes</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Testimonial Modal */}
+      {editingTestimonialModal && (
+        <div className="modal-overlay" onClick={() => setEditingTestimonialModal(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div className="modal-header">
+              <h2>Edit Testimonial</h2>
+              <button className="modal-close" onClick={() => setEditingTestimonialModal(null)}>×</button>
+            </div>
+            <div className="modal-body" style={{ padding: '1.5rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                {/* Avatar Section */}
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '8px', display: 'block' }}>Avatar</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <div style={{ 
+                      position: 'relative', 
+                      width: '80px', 
+                      height: '80px', 
+                      borderRadius: '50%',
+                      overflow: 'hidden',
+                      backgroundColor: '#f5f5f5',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: '2px solid #e0e0e0'
+                    }}>
+                      {editingTestimonialModal.avatarImage ? (
+                        <img 
+                          src={`http://localhost:3001${editingTestimonialModal.avatarImage}`} 
+                          alt={editingTestimonialModal.name}
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover'
+                          }}
+                        />
+                      ) : (
+                        <span style={{ fontSize: '2.5rem' }}>{editingTestimonialModal.avatar || '👤'}</span>
+                      )}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0]
+                          if (!file) return
+                          const url = await uploadTestimonialAvatar(file)
+                          if (url) {
+                            setEditingTestimonialModal({ ...editingTestimonialModal, avatarImage: url })
+                          }
+                        }}
+                        style={{ display: 'none' }}
+                        id="testimonial-avatar-upload-edit"
+                      />
+                      <label 
+                        htmlFor="testimonial-avatar-upload-edit"
+                        style={{
+                          display: 'inline-block',
+                          padding: '8px 16px',
+                          background: '#2196F3',
+                          color: 'white',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontSize: '13px',
+                          fontWeight: '600',
+                          marginBottom: '8px'
+                        }}
+                      >
+                        📷 Upload Image
+                      </label>
+                      <div style={{ marginTop: '8px' }}>
+                        <label style={{ fontWeight: '600', color: '#666', fontSize: '12px', marginBottom: '4px', display: 'block' }}>Or use emoji:</label>
+                        <input
+                          type="text"
+                          value={editingTestimonialModal.avatar || '👤'}
+                          onChange={(e) => setEditingTestimonialModal({ ...editingTestimonialModal, avatar: e.target.value })}
+                          placeholder="👤"
+                          style={{
+                            width: '80px',
+                            padding: '6px',
+                            border: '1px solid #ddd',
+                            borderRadius: '6px',
+                            fontSize: '14px',
+                            textAlign: 'center'
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Name */}
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '6px', display: 'block' }}>Client Name *</label>
+                  <input
+                    type="text"
+                    value={editingTestimonialModal.name || ''}
+                    onChange={(e) => setEditingTestimonialModal({ ...editingTestimonialModal, name: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      border: '1px solid #ddd',
+                      borderRadius: '6px',
+                      fontSize: '14px'
+                    }}
+                    placeholder="Enter client name"
+                  />
+                </div>
+
+                {/* Profession */}
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '6px', display: 'block' }}>Profession *</label>
+                  <input
+                    type="text"
+                    value={editingTestimonialModal.profession || ''}
+                    onChange={(e) => setEditingTestimonialModal({ ...editingTestimonialModal, profession: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      border: '1px solid #ddd',
+                      borderRadius: '6px',
+                      fontSize: '14px'
+                    }}
+                    placeholder="Enter profession"
+                  />
+                </div>
+
+                {/* Quote */}
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '6px', display: 'block' }}>Quote *</label>
+                  <textarea
+                    value={editingTestimonialModal.quote || ''}
+                    onChange={(e) => setEditingTestimonialModal({ ...editingTestimonialModal, quote: e.target.value })}
+                    rows="4"
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      border: '1px solid #ddd',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      fontFamily: 'inherit',
+                      resize: 'vertical'
+                    }}
+                    placeholder="Client testimonial quote"
+                  />
+                </div>
+
+                {/* Rating */}
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '6px', display: 'block' }}>Rating</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <input
+                      type="range"
+                      min="1"
+                      max="5"
+                      value={editingTestimonialModal.rating || 5}
+                      onChange={(e) => setEditingTestimonialModal({ ...editingTestimonialModal, rating: parseInt(e.target.value) })}
+                      style={{ flex: 1 }}
+                    />
+                    <div style={{ display: 'flex', gap: '4px', fontSize: '1.2rem' }}>
+                      {Array(5).fill(0).map((_, i) => (
+                        <span key={i} style={{ color: i < (editingTestimonialModal.rating || 5) ? '#FFD700' : '#ddd' }}>
+                          ⭐
+                        </span>
+                      ))}
+                    </div>
+                    <span style={{ fontWeight: '600', color: '#666', minWidth: '40px' }}>{editingTestimonialModal.rating || 5}/5</span>
+                  </div>
+                </div>
+
+                {/* Order */}
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '6px', display: 'block' }}>Order</label>
+                  <input
+                    type="number"
+                    value={editingTestimonialModal.order || 0}
+                    onChange={(e) => setEditingTestimonialModal({ ...editingTestimonialModal, order: parseInt(e.target.value) || 0 })}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      border: '1px solid #ddd',
+                      borderRadius: '6px',
+                      fontSize: '14px'
+                    }}
+                  />
+                </div>
+
+                {/* Active Status */}
+                <div>
+                  <label style={{ fontWeight: '600', color: '#666', fontSize: '13px', marginBottom: '8px', display: 'block' }}>Status</label>
+                  <button
+                    className={`toggle-btn ${editingTestimonialModal.isActive ? 'on' : 'off'}`}
+                    onClick={() => setEditingTestimonialModal({ ...editingTestimonialModal, isActive: !editingTestimonialModal.isActive })}
+                    style={{ width: 'auto', padding: '8px 16px' }}
+                  >
+                    {editingTestimonialModal.isActive ? 'Active' : 'Inactive'}
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer" style={{ padding: '1rem 1.5rem', borderTop: '1px solid #e0e0e0', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button className="btn-secondary" onClick={() => setEditingTestimonialModal(null)}>Cancel</button>
+              <button 
+                className="btn-primary" 
+                onClick={() => {
+                  if (!editingTestimonialModal.name || !editingTestimonialModal.profession || !editingTestimonialModal.quote) {
+                    alert('Please fill in Name, Profession, and Quote')
+                    return
+                  }
+                  handleUpdateTestimonial()
+                }}
+              >
+                Save Changes
+              </button>
             </div>
           </div>
         </div>
@@ -1949,42 +2946,46 @@ export default function Admin() {
                   <button className="btn-primary">Add Order</button>
                 </div>
                 <div className="table-container">
-                  <table className="data-table">
+                  <table className="data-table" style={{ borderCollapse: 'collapse' }}>
                     <thead>
                       <tr>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Product</th>
-                        <th>Quantity</th>
-                        <th>Amount</th>
-                        <th>Date</th>
-                        <th>Status</th>
-                        <th>Actions</th>
+                        <th style={{ width: '120px', verticalAlign: 'middle' }}>Order ID</th>
+                        <th style={{ verticalAlign: 'middle' }}>Name</th>
+                        <th style={{ verticalAlign: 'middle' }}>Email</th>
+                        <th style={{ verticalAlign: 'middle' }}>Product</th>
+                        <th style={{ verticalAlign: 'middle' }}>Quantity</th>
+                        <th style={{ verticalAlign: 'middle' }}>Amount</th>
+                        <th style={{ verticalAlign: 'middle' }}>Date</th>
+                        <th style={{ verticalAlign: 'middle' }}>Status</th>
+                        <th style={{ verticalAlign: 'middle' }}>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {loading ? (
                         <tr>
-                          <td colSpan="8" style={{ textAlign: 'center', padding: '20px' }}>
+                          <td colSpan="9" style={{ textAlign: 'center', padding: '20px' }}>
                             Loading orders...
                           </td>
                         </tr>
                       ) : orders.length === 0 ? (
                         <tr>
-                          <td colSpan="8" style={{ textAlign: 'center', padding: '20px' }}>
+                          <td colSpan="9" style={{ textAlign: 'center', padding: '20px' }}>
                             No orders found
                           </td>
                         </tr>
                       ) : (
                         orders.map(order => (
                           <tr key={order._id}>
-                            <td>{order.name}</td>
-                            <td>{order.email}</td>
-                            <td>{order.product}</td>
-                            <td>{order.quantity}</td>
-                            <td>${order.amount}</td>
-                            <td>{formatDate(order.createdAt)}</td>
-                            <td>
+                            <td style={{ fontSize: '12px', color: '#666', fontFamily: 'monospace', verticalAlign: 'top', padding: '12px 8px' }}>
+                              {order._id ? '...' + String(order._id).slice(-6) : '-'}
+                            </td>
+                            <td style={{ verticalAlign: 'top', padding: '12px 8px', wordBreak: 'break-word' }}>{order.name}</td>
+                            <td style={{ verticalAlign: 'top', padding: '12px 8px', wordBreak: 'break-word' }}>{order.email}</td>
+                            <td style={{ verticalAlign: 'top', padding: '12px 8px' }}>{order.product}</td>
+                            <td style={{ verticalAlign: 'top', padding: '12px 8px', textAlign: 'center' }}>{order.quantity}</td>
+                            <td style={{ verticalAlign: 'top', padding: '12px 8px' }}>${order.amount}</td>
+                            <td style={{ verticalAlign: 'top', padding: '12px 8px' }}>{formatDate(order.createdAt)}</td>
+                            <td style={{ verticalAlign: 'top', padding: '12px 8px' }}>
                               <span 
                                 className="status-badge" 
                                 style={{ backgroundColor: getStatusColor(order.status) }}
@@ -1992,9 +2993,45 @@ export default function Admin() {
                                 {order.status}
                               </span>
                             </td>
-                            <td>
-                              <button className="btn-sm">View</button>
-                              <button className="btn-sm">Update</button>
+                            <td style={{ verticalAlign: 'top', padding: '12px 8px' }}>
+                              <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                                <button 
+                                  className="btn-sm" 
+                                  onClick={() => {
+                                    const orderId = order._id ? (order._id.toString ? order._id.toString() : String(order._id)) : null
+                                    console.log('View button clicked - Order object:', order)
+                                    console.log('View button clicked - Order ID:', orderId, 'Type:', typeof orderId)
+                                    if (orderId) {
+                                      handleViewOrder(orderId)
+                                    } else {
+                                      alert('Order ID not available')
+                                      console.error('Order ID is null or undefined:', order)
+                                    }
+                                  }}
+                                >
+                                  View
+                                </button>
+                                <button 
+                                  className="btn-sm" 
+                                  onClick={() => handleUpdateOrderClick(order)}
+                                >
+                                  Update
+                                </button>
+                                <button 
+                                  className="btn-sm btn-danger" 
+                                  onClick={() => {
+                                    const orderId = order._id ? (order._id.toString ? order._id.toString() : String(order._id)) : null
+                                    if (orderId) {
+                                      handleDeleteOrder(orderId)
+                                    } else {
+                                      alert('Order ID not available')
+                                    }
+                                  }}
+                                  style={{ background: '#dc3545', color: 'white', border: 'none' }}
+                                >
+                                  Delete
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))
@@ -3055,20 +4092,7 @@ export default function Admin() {
                                 <div style={{ display: 'flex', gap: '8px' }}>
                                   <button 
                                     className="secondary-btn" 
-                                    onClick={() => {
-                                      setEditingTestimonial(test)
-                                      setTestimonialForm({
-                                        name: test.name || '',
-                                        profession: test.profession || '',
-                                        quote: test.quote || '',
-                                        avatar: test.avatar || '👤',
-                                        avatarImage: test.avatarImage || '',
-                                        rating: test.rating || 5,
-                                        isActive: test.isActive !== false,
-                                        order: test.order || 0
-                                      })
-                                      setShowTestimonialForm(true)
-                                    }}
+                                    onClick={() => handleEditTestimonial(test)}
                                   >
                                     Edit
                                   </button>
@@ -3874,6 +4898,117 @@ export default function Admin() {
                               <h3 className="service-title editable-text" contentEditable="true">SEO Optimization</h3>
                               <p className="service-description editable-text" contentEditable="true">Improve your website's visibility and ranking in search engines.</p>
                             </div>
+                          </div>
+                        </div>
+                      </section>
+
+                      {/* Work Process Section - Editable */}
+                      <section className="work-process editable-section" data-section="workProcess">
+                        <div className="container">
+                          <div className="process-header">
+                            <span 
+                              className="process-subtitle editable-text" 
+                              data-field="workProcess-subtitle"
+                              contentEditable="true"
+                              onBlur={(e) => handleContentChange('workProcess', 'subtitle', e.target.textContent)}
+                            >
+                              {pageContent.workProcess?.subtitle || 'WORK PROCESS'}
+                            </span>
+                            <h2 
+                              className="process-title editable-text" 
+                              data-field="workProcess-title"
+                              contentEditable="true"
+                              onBlur={(e) => handleContentChange('workProcess', 'title', e.target.textContent)}
+                            >
+                              {pageContent.workProcess?.title || 'Step By Step Simple & Clean Working Process'}
+                            </h2>
+                            <div className="process-underline">
+                              <div className="underline-line"></div>
+                              <div className="underline-line short"></div>
+                            </div>
+                          </div>
+                          
+                          <div className="process-steps">
+                            {(pageContent.workProcess?.steps || [
+                              { title: "Research", description: "Eos vero dolore eirmod diam duo lorem magna sit sea dolore sanctus sed et", icon: "🔍" },
+                              { title: "Concept", description: "Eos vero dolore eirmod diam duo lorem magna sit sea dolore sanctus sed et", icon: "📊" },
+                              { title: "Development", description: "Eos vero dolore eirmod diam duo lorem magna sit sea dolore sanctus sed et", icon: "</>" },
+                              { title: "Finalization", description: "Eos vero dolore eirmod diam duo lorem magna sit sea dolore sanctus sed et", icon: "✓" }
+                            ]).map((step, index) => (
+                              <div key={index} className="process-step">
+                                <div className="step-card editable-card">
+                                  <div className="step-icon">
+                                    <div className="icon-square">
+                                      <input
+                                        type="text"
+                                        defaultValue={step.icon || '📋'}
+                                        placeholder="Icon"
+                                        onChange={(e) => {
+                                          const steps = [...(pageContent.workProcess?.steps || [
+                                            { title: "Research", description: "Eos vero dolore eirmod diam duo lorem magna sit sea dolore sanctus sed et", icon: "🔍" },
+                                            { title: "Concept", description: "Eos vero dolore eirmod diam duo lorem magna sit sea dolore sanctus sed et", icon: "📊" },
+                                            { title: "Development", description: "Eos vero dolore eirmod diam duo lorem magna sit sea dolore sanctus sed et", icon: "</>" },
+                                            { title: "Finalization", description: "Eos vero dolore eirmod diam duo lorem magna sit sea dolore sanctus sed et", icon: "✓" }
+                                          ])]
+                                          if (!steps[index]) steps[index] = { title: '', description: '', icon: '' }
+                                          steps[index] = { ...steps[index], icon: e.target.value }
+                                          handleContentChange('workProcess', 'steps', steps)
+                                        }}
+                                        style={{
+                                          fontSize: '1.5rem',
+                                          width: '100%',
+                                          textAlign: 'center',
+                                          border: '2px dashed rgba(74, 144, 226, 0.3)',
+                                          borderRadius: '4px',
+                                          background: 'rgba(255, 255, 255, 0.5)',
+                                          padding: '4px',
+                                          outline: 'none'
+                                        }}
+                                      />
+                                    </div>
+                                  </div>
+                                  <h3 
+                                    className="step-title editable-text" 
+                                    contentEditable="true"
+                                    onBlur={(e) => {
+                                      const steps = [...(pageContent.workProcess?.steps || [
+                                        { title: "Research", description: "Eos vero dolore eirmod diam duo lorem magna sit sea dolore sanctus sed et", icon: "🔍" },
+                                        { title: "Concept", description: "Eos vero dolore eirmod diam duo lorem magna sit sea dolore sanctus sed et", icon: "📊" },
+                                        { title: "Development", description: "Eos vero dolore eirmod diam duo lorem magna sit sea dolore sanctus sed et", icon: "</>" },
+                                        { title: "Finalization", description: "Eos vero dolore eirmod diam duo lorem magna sit sea dolore sanctus sed et", icon: "✓" }
+                                      ])]
+                                      if (!steps[index]) steps[index] = { title: '', description: '', icon: '' }
+                                      steps[index] = { ...steps[index], title: e.target.textContent }
+                                      handleContentChange('workProcess', 'steps', steps)
+                                    }}
+                                  >
+                                    {step.title || 'Step Title'}
+                                  </h3>
+                                  <p 
+                                    className="step-description editable-text" 
+                                    contentEditable="true"
+                                    onBlur={(e) => {
+                                      const steps = [...(pageContent.workProcess?.steps || [
+                                        { title: "Research", description: "Eos vero dolore eirmod diam duo lorem magna sit sea dolore sanctus sed et", icon: "🔍" },
+                                        { title: "Concept", description: "Eos vero dolore eirmod diam duo lorem magna sit sea dolore sanctus sed et", icon: "📊" },
+                                        { title: "Development", description: "Eos vero dolore eirmod diam duo lorem magna sit sea dolore sanctus sed et", icon: "</>" },
+                                        { title: "Finalization", description: "Eos vero dolore eirmod diam duo lorem magna sit sea dolore sanctus sed et", icon: "✓" }
+                                      ])]
+                                      if (!steps[index]) steps[index] = { title: '', description: '', icon: '' }
+                                      steps[index] = { ...steps[index], description: e.target.textContent }
+                                      handleContentChange('workProcess', 'steps', steps)
+                                    }}
+                                  >
+                                    {step.description || 'Step description'}
+                                  </p>
+                                </div>
+                                {index < (pageContent.workProcess?.steps || []).length - 1 && (
+                                  <div className="step-arrow">
+                                    <span className="arrow-symbol">»</span>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
                           </div>
                         </div>
                       </section>
@@ -4889,8 +6024,87 @@ export default function Admin() {
                             contentEditable="true"
                             onBlur={(e) => handleContentChange('hero', 'title', e.target.textContent)}
                           >
-                            If You Have Any Query, Feel Free To Contact Us
+                            {pageContent.hero?.title || 'If You Have Any Query, Feel Free To Contact Us'}
                           </h1>
+                        </div>
+                      </section>
+
+                      {/* Contact Information Section */}
+                      <section className="contact-info-section editable-section" data-section="contact-info">
+                        <div className="container">
+                          <div className="contact-methods">
+                            <div className="contact-method editable-card" data-field="contact-phone">
+                              <div className="method-icon">
+                                <span className="icon-phone">📞</span>
+                              </div>
+                              <div className="method-content">
+                                <p 
+                                  className="method-text editable-text" 
+                                  contentEditable="true"
+                                  data-field="info-phoneLabel"
+                                  onBlur={(e) => handleContentChange('info', 'phoneLabel', e.target.textContent)}
+                                >
+                                  {pageContent.info?.phoneLabel || 'Call to ask any question'}
+                                </p>
+                                <span 
+                                  className="method-value editable-text" 
+                                  contentEditable="true"
+                                  data-field="info-phone"
+                                  onBlur={(e) => handleContentChange('info', 'phone', e.target.textContent)}
+                                >
+                                  {pageContent.info?.phone || '+012 345 6789'}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="contact-method editable-card" data-field="contact-email">
+                              <div className="method-icon">
+                                <span className="icon-email">✉️</span>
+                              </div>
+                              <div className="method-content">
+                                <p 
+                                  className="method-text editable-text" 
+                                  contentEditable="true"
+                                  data-field="info-emailLabel"
+                                  onBlur={(e) => handleContentChange('info', 'emailLabel', e.target.textContent)}
+                                >
+                                  {pageContent.info?.emailLabel || 'Email to get free quote'}
+                                </p>
+                                <span 
+                                  className="method-value editable-text" 
+                                  contentEditable="true"
+                                  data-field="info-email"
+                                  onBlur={(e) => handleContentChange('info', 'email', e.target.textContent)}
+                                >
+                                  {pageContent.info?.email || 'info@example.com'}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="contact-method editable-card" data-field="contact-address">
+                              <div className="method-icon">
+                                <span className="icon-location">📍</span>
+                              </div>
+                              <div className="method-content">
+                                <p 
+                                  className="method-text editable-text" 
+                                  contentEditable="true"
+                                  data-field="info-addressLabel"
+                                  onBlur={(e) => handleContentChange('info', 'addressLabel', e.target.textContent)}
+                                >
+                                  {pageContent.info?.addressLabel || 'Visit our office'}
+                                </p>
+                                <span 
+                                  className="method-value editable-text" 
+                                  contentEditable="true"
+                                  data-field="info-address"
+                                  onBlur={(e) => handleContentChange('info', 'address', e.target.textContent)}
+                                >
+                                  {pageContent.info?.address || '123 Street, NY, USA'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </section>
 
@@ -4904,15 +6118,17 @@ export default function Admin() {
                                   className="form-title editable-text" 
                                   data-field="form-title"
                                   contentEditable="true"
+                                  onBlur={(e) => handleContentChange('form', 'title', e.target.textContent)}
                                 >
-                                  Send Us A Message
+                                  {pageContent.form?.title || 'Send Us A Message'}
                                 </h2>
                                 <p 
                                   className="form-description editable-text" 
                                   data-field="form-description"
                                   contentEditable="true"
+                                  onBlur={(e) => handleContentChange('form', 'description', e.target.textContent)}
                                 >
-                                  We'd love to hear from you. Send us a message and we'll respond as soon as possible.
+                                  {pageContent.form?.description || 'We\'d love to hear from you. Send us a message and we\'ll respond as soon as possible.'}
                                 </p>
                               </div>
                               
@@ -4951,7 +6167,14 @@ export default function Admin() {
                                 </div>
                                 
                                 <button type="submit" className="submit-btn">
-                                  <span className="btn-text editable-text" contentEditable="true">SEND MESSAGE</span>
+                                  <span 
+                                    className="btn-text editable-text" 
+                                    contentEditable="true"
+                                    data-field="form-buttonText"
+                                    onBlur={(e) => handleContentChange('form', 'buttonText', e.target.textContent)}
+                                  >
+                                    {pageContent.form?.buttonText || 'SEND MESSAGE'}
+                                  </span>
                                 </button>
                               </form>
                             </div>
@@ -4962,31 +6185,55 @@ export default function Admin() {
                                   className="map-title editable-text" 
                                   data-field="map-title"
                                   contentEditable="true"
+                                  onBlur={(e) => handleContentChange('map', 'title', e.target.textContent)}
                                 >
-                                  Find Us Here
+                                  {pageContent.map?.title || 'Find Us Here'}
                                 </h3>
                                 <p 
                                   className="map-description editable-text" 
                                   data-field="map-description"
                                   contentEditable="true"
+                                  onBlur={(e) => handleContentChange('map', 'description', e.target.textContent)}
                                 >
-                                  Visit our office or get directions to our location.
+                                  {pageContent.map?.description || 'Visit our office or get directions to our location.'}
                                 </p>
                               </div>
                               
                               <div className="map-wrapper">
                                 <div className="map-placeholder editable-image" data-field="map-image">
-                                  <div className="map-content">
-                                    <div className="map-location editable-text" contentEditable="true">📍 New York, United States</div>
-                                    <div className="map-controls">
-                                      <div className="zoom-controls">
-                                        <button className="zoom-btn">+</button>
-                                        <button className="zoom-btn">-</button>
+                                  {pageContent.map?.image ? (
+                                    <img 
+                                      src={`http://localhost:3001${pageContent.map.image}`} 
+                                      alt="Map Location"
+                                      style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '12px' }}
+                                    />
+                                  ) : (
+                                    <div className="map-content">
+                                      <div 
+                                        className="map-location editable-text" 
+                                        contentEditable="true"
+                                        data-field="map-location"
+                                        onBlur={(e) => handleContentChange('map', 'location', e.target.textContent)}
+                                      >
+                                        {pageContent.map?.location || '📍 New York, United States'}
                                       </div>
-                                      <div className="directions-btn">🧭</div>
+                                      <div className="map-controls">
+                                        <div className="zoom-controls">
+                                          <button className="zoom-btn">+</button>
+                                          <button className="zoom-btn">-</button>
+                                        </div>
+                                        <div className="directions-btn">🧭</div>
+                                      </div>
+                                      <div 
+                                        className="map-copyright editable-text" 
+                                        contentEditable="true"
+                                        data-field="map-copyright"
+                                        onBlur={(e) => handleContentChange('map', 'copyright', e.target.textContent)}
+                                      >
+                                        {pageContent.map?.copyright || 'Map data ©2025 Google Terms'}
+                                      </div>
                                     </div>
-                                    <div className="map-copyright editable-text" contentEditable="true">Map data ©2025 Google Terms</div>
-                                  </div>
+                                  )}
                                   <div className="image-upload-overlay">
                                     <input 
                                       type="file" 
@@ -5001,40 +6248,6 @@ export default function Admin() {
                                       }}
                                     />
                                     <button className="upload-btn">📷 Upload Map</button>
-                                  </div>
-                                </div>
-                              </div>
-                              
-                              <div className="contact-info">
-                                <div className="info-item editable-card" data-field="contact-phone">
-                                  <div className="info-icon">📞</div>
-                                  <div className="info-content">
-                                    <h4 className="info-title editable-text" contentEditable="true">Phone</h4>
-                                    <p className="info-value editable-text" contentEditable="true">+012 345 6789</p>
-                                  </div>
-                                </div>
-                                
-                                <div className="info-item editable-card" data-field="contact-email">
-                                  <div className="info-icon">📧</div>
-                                  <div className="info-content">
-                                    <h4 className="info-title editable-text" contentEditable="true">Email</h4>
-                                    <p className="info-value editable-text" contentEditable="true">info@alishait.com</p>
-                                  </div>
-                                </div>
-                                
-                                <div className="info-item editable-card" data-field="contact-address">
-                                  <div className="info-icon">📍</div>
-                                  <div className="info-content">
-                                    <h4 className="info-title editable-text" contentEditable="true">Address</h4>
-                                    <p className="info-value editable-text" contentEditable="true">123 Business Street, New York, NY 10001</p>
-                                  </div>
-                                </div>
-                                
-                                <div className="info-item editable-card" data-field="contact-hours">
-                                  <div className="info-icon">🕒</div>
-                                  <div className="info-content">
-                                    <h4 className="info-title editable-text" contentEditable="true">Office Hours</h4>
-                                    <p className="info-value editable-text" contentEditable="true">Mon - Fri: 9:00 AM - 6:00 PM</p>
                                   </div>
                                 </div>
                               </div>

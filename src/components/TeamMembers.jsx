@@ -37,7 +37,19 @@ export default function TeamMembers() {
                 <div className="member-image">
                   <div className="image-placeholder">
                     {member.photo ? (
-                      <img src={member.photo} alt={member.name} className="member-photo" />
+                      <img 
+                        src={member.photo} 
+                        alt={member.name} 
+                        className="member-photo"
+                        style={{
+                          objectPosition: member.photoAdjustment 
+                            ? `${50 + (member.photoAdjustment.x || 0)}% ${50 + (member.photoAdjustment.y || 0)}%`
+                            : 'center center',
+                          transform: member.photoAdjustment 
+                            ? `scale(${(member.photoAdjustment.scale || 100) / 100})`
+                            : 'none'
+                        }}
+                      />
                     ) : (
                       <div className="member-avatar">👤</div>
                     )}
