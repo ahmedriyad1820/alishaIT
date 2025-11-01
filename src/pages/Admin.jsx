@@ -2178,92 +2178,213 @@ export default function Admin() {
 
                 <div className="services-table-card">
                   <div className="card-header">
-                    <h3>📋 Services List</h3>
+                    <h3>📋 Services List ({services.length})</h3>
                   </div>
-                  <div className="table-container">
+                  <div style={{ padding: '1.5rem' }}>
                     {services.length === 0 ? (
-                      <div className="empty-state"><p>No services found. Add your first service above!</p></div>
+                      <div className="empty-state" style={{ padding: '3rem', textAlign: 'center' }}>
+                        <p style={{ fontSize: '16px', color: '#666' }}>No services found. Add your first service above!</p>
+                      </div>
                     ) : (
-                      <table className="admin-table">
-                        <thead>
-                          <tr>
-                            <th>Order</th>
-                            <th>Icon</th>
-                            <th>Title</th>
-                            <th>Category</th>
-                            <th>Active</th>
-                            <th>Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {services.map(svc => (
-                            <tr key={svc._id}>
-                              <td>
-                                <input type="number" defaultValue={svc.order || 0} onBlur={(e)=>updateService(svc._id,{ order: parseInt(e.target.value||'0',10) })} />
-                              </td>
-                              <td style={{ minWidth: '120px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        {services.map(svc => (
+                          <div 
+                            key={svc._id}
+                            style={{
+                              backgroundColor: '#fff',
+                              border: '1px solid #e0e0e0',
+                              borderRadius: '12px',
+                              padding: '1.5rem',
+                              display: 'flex',
+                              gap: '1.5rem',
+                              alignItems: 'flex-start',
+                              transition: 'box-shadow 0.2s',
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)'}
+                            onMouseLeave={(e) => e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)'}
+                          >
+                            {/* Icon Section */}
+                            <div style={{ 
+                              flexShrink: 0, 
+                              width: '80px', 
+                              display: 'flex', 
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              gap: '8px'
+                            }}>
+                              <div style={{
+                                width: '64px',
+                                height: '64px',
+                                borderRadius: '12px',
+                                backgroundColor: '#f5f5f5',
+                                border: '2px solid #e0e0e0',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '32px',
+                                overflow: 'hidden'
+                              }}>
                                 {svc.iconImage ? (
                                   <img 
                                     key={`icon-${svc._id}-${svc.iconImage}`}
                                     src={`http://localhost:3001${svc.iconImage}?v=${svc.updatedAt || Date.now()}`} 
                                     alt="Icon" 
-                                    style={{ width: '32px', height: '32px', objectFit: 'contain', borderRadius: '4px', marginBottom: '4px', display: 'block' }}
+                                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                                     onError={(e) => {
                                       console.error('Icon image failed to load:', svc.iconImage)
                                       e.target.style.display = 'none'
                                     }}
                                   />
                                 ) : (
-                                  <span style={{ fontSize: 18, display: 'block', marginBottom: '4px' }}>{svc.icon || '🛠️'}</span>
+                                  <span>{svc.icon || '🛠️'}</span>
                                 )}
+                              </div>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '100%' }}>
                                 <input 
                                   type="text" 
                                   defaultValue={svc.icon || '🛠️'} 
                                   placeholder="Emoji"
-                                  style={{ width: '80px', fontSize: '12px', padding: '2px' }}
+                                  style={{ 
+                                    width: '100%', 
+                                    fontSize: '11px', 
+                                    padding: '4px',
+                                    border: '1px solid #ddd',
+                                    borderRadius: '4px',
+                                    textAlign: 'center'
+                                  }}
                                   onBlur={(e)=>updateService(svc._id,{ icon: e.target.value.trim() || '🛠️' })} 
                                 />
-                                <input 
-                                  type="file" 
-                                  accept="image/*" 
-                                  style={{ fontSize: '10px', width: '100%', marginTop: '4px' }}
-                                  onChange={async (e) => {
-                                    const f = e.target.files[0]
-                                    if (f) {
-                                      try {
-                                        const url = await uploadServiceImage(f)
-                                        if (url) {
-                                          console.log('Icon uploaded, updating service:', svc._id, url)
-                                          await updateService(svc._id, { iconImage: url })
-                                          e.target.value = '' // Reset file input
+                                <label style={{ fontSize: '10px', cursor: 'pointer', textAlign: 'center', color: '#666', padding: '2px' }}>
+                                  📷 Upload
+                                  <input 
+                                    type="file" 
+                                    accept="image/*" 
+                                    style={{ display: 'none' }}
+                                    onChange={async (e) => {
+                                      const f = e.target.files[0]
+                                      if (f) {
+                                        try {
+                                          const url = await uploadServiceImage(f)
+                                          if (url) {
+                                            console.log('Icon uploaded, updating service:', svc._id, url)
+                                            await updateService(svc._id, { iconImage: url })
+                                            e.target.value = ''
+                                          }
+                                        } catch (err) {
+                                          console.error('Failed to upload icon:', err)
+                                          alert('Failed to upload icon: ' + (err.message || 'Unknown error'))
                                         }
-                                      } catch (err) {
-                                        console.error('Failed to upload icon:', err)
-                                        alert('Failed to upload icon: ' + (err.message || 'Unknown error'))
                                       }
-                                    }
+                                    }}
+                                  />
+                                </label>
+                              </div>
+                            </div>
+
+                            {/* Main Content Section */}
+                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                              <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                                <div style={{ flex: 1 }}>
+                                  <label style={{ fontSize: '11px', color: '#666', marginBottom: '4px', display: 'block', fontWeight: '600' }}>Title</label>
+                                  <input 
+                                    defaultValue={svc.title} 
+                                    onBlur={(e)=>updateService(svc._id,{ title: e.target.value.trim() })} 
+                                    style={{
+                                      width: '100%',
+                                      padding: '8px',
+                                      border: '1px solid #ddd',
+                                      borderRadius: '6px',
+                                      fontSize: '14px',
+                                      fontWeight: '600'
+                                    }}
+                                  />
+                                </div>
+                                <div style={{ width: '120px' }}>
+                                  <label style={{ fontSize: '11px', color: '#666', marginBottom: '4px', display: 'block', fontWeight: '600' }}>Order</label>
+                                  <input 
+                                    type="number" 
+                                    defaultValue={svc.order || 0} 
+                                    onBlur={(e)=>updateService(svc._id,{ order: parseInt(e.target.value||'0',10) })} 
+                                    style={{
+                                      width: '100%',
+                                      padding: '8px',
+                                      border: '1px solid #ddd',
+                                      borderRadius: '6px',
+                                      fontSize: '14px'
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                              
+                              <div>
+                                <label style={{ fontSize: '11px', color: '#666', marginBottom: '4px', display: 'block', fontWeight: '600' }}>Description</label>
+                                <textarea 
+                                  defaultValue={svc.description} 
+                                  onBlur={(e)=>updateService(svc._id,{ description: e.target.value.trim() })} 
+                                  rows="2"
+                                  style={{
+                                    width: '100%',
+                                    padding: '8px',
+                                    border: '1px solid #ddd',
+                                    borderRadius: '6px',
+                                    fontSize: '13px',
+                                    resize: 'vertical',
+                                    fontFamily: 'inherit'
                                   }}
                                 />
-                              </td>
-                              <td>
-                                <input defaultValue={svc.title} onBlur={(e)=>updateService(svc._id,{ title: e.target.value })} />
-                                <div className="muted small">
-                                  <input defaultValue={svc.description} onBlur={(e)=>updateService(svc._id,{ description: e.target.value })} />
+                              </div>
+
+                              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                <div style={{ flex: 1 }}>
+                                  <label style={{ fontSize: '11px', color: '#666', marginBottom: '4px', display: 'block', fontWeight: '600' }}>Category</label>
+                                  <input 
+                                    defaultValue={svc.category || ''} 
+                                    onBlur={(e)=>updateService(svc._id,{ category: e.target.value.trim() })} 
+                                    placeholder="Optional"
+                                    style={{
+                                      width: '100%',
+                                      padding: '8px',
+                                      border: '1px solid #ddd',
+                                      borderRadius: '6px',
+                                      fontSize: '13px'
+                                    }}
+                                  />
                                 </div>
-                              </td>
-                              <td>
-                                <input defaultValue={svc.category || ''} onBlur={(e)=>updateService(svc._id,{ category: e.target.value })} />
-                              </td>
-                              <td>
-                                <input type="checkbox" defaultChecked={!!svc.isActive} onChange={(e)=>updateService(svc._id,{ isActive: e.target.checked })} />
-                              </td>
-                              <td>
-                                <button className="btn-danger" onClick={()=>deleteService(svc._id)}>Delete</button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '24px' }}>
+                                  <label style={{ fontSize: '13px', color: '#333', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <input 
+                                      type="checkbox" 
+                                      defaultChecked={!!svc.isActive} 
+                                      onChange={(e)=>updateService(svc._id,{ isActive: e.target.checked })} 
+                                      style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                                    />
+                                    <span>Active</span>
+                                  </label>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Actions Section */}
+                            <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
+                              <button 
+                                className="btn-danger" 
+                                onClick={()=>deleteService(svc._id)}
+                                style={{
+                                  padding: '8px 16px',
+                                  fontSize: '13px',
+                                  borderRadius: '6px',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  whiteSpace: 'nowrap'
+                                }}
+                              >
+                                🗑️ Delete
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
                 </div>
