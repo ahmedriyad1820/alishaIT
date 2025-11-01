@@ -7,6 +7,9 @@ export default function Hero({ onNavigate }) {
   const heroContent = content.home?.hero || {}
 
   const [slides, setSlides] = useState([])
+  const [placeholderUrl, setPlaceholderUrl] = useState(() => {
+    try { return localStorage.getItem('heroLastSlideUrl') || '' } catch (_) { return '' }
+  })
   const [current, setCurrent] = useState(0)
   const [intervalMs, setIntervalMs] = useState(30000)
   const timerRef = useRef(null)
@@ -38,11 +41,32 @@ export default function Hero({ onNavigate }) {
     return () => timerRef.current && clearInterval(timerRef.current)
   }, [slides, intervalMs])
 
+  const makeUrl = (u) => (u?.startsWith('/') ? 'http://localhost:3001' + u : u)
+
+  // Persist last successful slide URL to use on next page load as a fast placeholder
+  useEffect(() => {
+    if (!slides.length) return
+    const u = makeUrl(slides[0]?.image)
+    if (u) {
+      try { localStorage.setItem('heroLastSlideUrl', u) } catch (_) {}
+    }
+  }, [slides])
+
+  const bgStyle = slides.length ? {
+    backgroundImage: `url(${makeUrl(slides[current]?.image)})`,
+    backgroundSize: 'cover',
+    backgroundPosition: 'center'
+  } : (placeholderUrl ? {
+    backgroundImage: `url(${placeholderUrl})`,
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    filter: 'blur(1px)',
+    transition: 'filter 200ms ease'
+  } : { display: 'none' })
+
   return (
     <section id="home" className="hero">
-      <div className="hero-background" style={slides.length ? {
-        backgroundImage: `url(${slides[current]?.image?.startsWith('/') ? 'http://localhost:3001' + slides[current].image : slides[current]?.image})`
-      } : undefined}>
+      <div className="hero-background" style={bgStyle}>
         <div className="hero-overlay"></div>
       </div>
       <div className="hero-content">

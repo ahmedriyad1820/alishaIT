@@ -49,6 +49,14 @@ app.use((req, res, next) => {
   next()
 })
 
+// Request logging middleware (for debugging)
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/services')) {
+    console.log(`${req.method} ${req.path} - Headers:`, { origin: req.headers.origin, cookie: req.headers.cookie })
+  }
+  next()
+})
+
 // Session setup
 const sessionSecret = process.env.SESSION_SECRET || 'change_this_secret'
 app.use(session({
@@ -200,6 +208,21 @@ const productItemSchema = new mongoose.Schema({
 
 const ProductItem = mongoose.model('ProductItem', productItemSchema)
 
+// Service item schema for Admin-managed services
+const serviceItemSchema = new mongoose.Schema({
+  title: { type: String, required: true, trim: true },
+  description: { type: String, required: true, trim: true },
+  icon: { type: String, default: '🛠️' }, // Emoji or text icon
+  iconImage: { type: String, trim: true }, // URL to uploaded icon image
+  image: { type: String, trim: true }, // URL to uploaded image
+  category: { type: String, trim: true },
+  isActive: { type: Boolean, default: true },
+  order: { type: Number, default: 0 },
+  createdAt: { type: Date, default: Date.now }
+})
+
+const ServiceItem = mongoose.model('ServiceItem', serviceItemSchema)
+
 // Category schema for dynamic category management
 const categorySchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true, unique: true },
@@ -331,7 +354,8 @@ const requireAdmin = (req, res, next) => {
   if (req.session && req.session.adminId) {
     return next()
   }
-  return res.status(401).json({ success: false, error: 'Unauthorized' })
+  console.log('❌ Unauthorized request to', req.path, '- Session:', req.session)
+  return res.status(401).json({ success: false, error: 'Unauthorized - Please log in again' })
 }
 
 // Contact routes
@@ -916,6 +940,75 @@ app.delete('/api/team-members/:id', requireAdmin, async (req, res) => {
   }
 })
 
+// Services - list (this route must be before /api/services/:id routes)
+app.get('/api/services', async (req, res) => {
+  try {
+    const activeOnly = req.query.active === 'true'
+    const query = activeOnly ? { isActive: true } : {}
+    const services = await ServiceItem.find(query).sort({ order: 1, createdAt: -1 })
+    res.set('Cache-Control', 'no-store')
+    res.set('Pragma', 'no-cache')
+    res.set('Expires', '0')
+    res.json({ success: true, data: services })
+  } catch (error) {
+    console.error('Service list error:', error)
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+// Services - create (must be before any /api/services/:id routes)
+app.post('/api/services', requireAdmin, async (req, res) => {
+  try {
+    console.log('POST /api/services - Request received:', { body: req.body, session: req.session?.adminId })
+    const { title, description, icon = '🛠️', iconImage = '', image = '', category = '', isActive = true, order = 0 } = req.body
+    if (!title || !description) {
+      console.error('Service create validation failed:', req.body)
+      return res.status(400).json({ success: false, error: 'title and description are required' })
+    }
+    console.log('Creating service with data:', { title, description, icon, iconImage, image, category, isActive, order })
+    const service = await ServiceItem.create({ title, description, icon, iconImage, image, category, isActive, order })
+    console.log('Service created successfully:', service._id)
+    res.json({ success: true, data: service })
+  } catch (error) {
+    console.error('Service create error:', error.message, error.stack)
+    console.error('Error details - body:', req.body)
+    res.status(400).json({ success: false, error: error.message || 'Failed to create service' })
+  }
+})
+
+// Services - update
+app.put('/api/services/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params
+    const update = req.body
+    const service = await ServiceItem.findByIdAndUpdate(id, update, { new: true })
+    if (!service) {
+      console.error('Service update not found:', id)
+      return res.status(404).json({ success: false, error: 'Service not found' })
+    }
+    res.json({ success: true, data: service })
+  } catch (error) {
+    console.error('Service update error:', error, req.params, req.body)
+    res.status(400).json({ success: false, error: error.message })
+  }
+})
+
+// Services - delete
+app.delete('/api/services/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params
+    const service = await ServiceItem.findByIdAndDelete(id)
+    if (!service) {
+      console.error('Service delete not found:', id)
+      return res.status(404).json({ success: false, error: 'Service not found' })
+    }
+    res.json({ success: true, message: 'Service deleted successfully' })
+  } catch (error) {
+    console.error('Service delete error:', error, req.params)
+    res.status(400).json({ success: false, error: error.message })
+  }
+})
+
 app.post('/api/pages/:pageName', requireAdmin, async (req, res) => {
   try {
     const { pageName } = req.params
@@ -993,6 +1086,17 @@ const getDefaultPageContent = (pageName) => {
         subtitle: 'OUR SERVICES',
         title: 'We Provide The Best Service For You',
         description: 'We offer comprehensive IT solutions tailored to your business needs. Our expert team delivers cutting-edge technology services.'
+      },
+      whyChooseUs: {
+        subtitle: 'WHY CHOOSE US',
+        title: 'We Are Here to Grow Your Business Exponentially',
+        image: '',
+        features: [
+          { icon: '⚙️', title: 'Best In Industry', description: 'Magna sea eos sit dolor, ipsum amet lorem diam dolor eos et diam dolor' },
+          { icon: '🏆', title: 'Award Winning', description: 'Magna sea eos sit dolor, ipsum amet lorem diam dolor eos et diam dolor' },
+          { icon: '👥', title: 'Professional Staff', description: 'Magna sea eos sit dolor, ipsum amet lorem diam dolor eos et diam dolor' },
+          { icon: '📞', title: '24/7 Support', description: 'Magna sea eos sit dolor, ipsum amet lorem diam dolor eos et diam dolor' }
+        ]
       },
       quote: {
         subtitle: 'REQUEST A QUOTE',

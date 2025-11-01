@@ -6,6 +6,14 @@ export default function BlogDetails() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
+  const goBack = () => {
+    if (window.history.length > 1) {
+      window.history.back()
+    } else {
+      window.location.href = '/blog'
+    }
+  }
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const slug = params.get('slug')
@@ -132,6 +140,12 @@ export default function BlogDetails() {
           </div>
         </div>
       </section>
+      {/* Back to Blog Button */}
+      <div className="back-to-products" style={{ marginTop: 16 }}>
+        <button className="back-btn" onClick={goBack}>
+          ← Back to Blog
+        </button>
+      </div>
     </div>
   )
 }

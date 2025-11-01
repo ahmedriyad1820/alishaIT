@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import AdminLogin from '../components/AdminLogin'
-import { contactAPI, quoteAPI, orderAPI, adminAPI, pageContentAPI, imageUploadAPI, projectItemsAPI, productItemsAPI, categoriesAPI, slidersAPI, sliderConfigAPI, teamMembersAPI, blogAPI } from '../api/client.js'
+import { contactAPI, quoteAPI, orderAPI, adminAPI, pageContentAPI, imageUploadAPI, projectItemsAPI, productItemsAPI, categoriesAPI, slidersAPI, sliderConfigAPI, teamMembersAPI, blogAPI, servicesAPI } from '../api/client.js'
 
 export default function Admin() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -26,6 +26,10 @@ export default function Admin() {
   const [showProductEditModal, setShowProductEditModal] = useState(false)
   const [uploadingProductImage, setUploadingProductImage] = useState(false)
   
+  // Service management state
+  const [services, setServices] = useState([])
+  const [uploadingServiceImage, setUploadingServiceImage] = useState(false)
+
   // Category management state
   const [categories, setCategories] = useState([])
   const [editingCategory, setEditingCategory] = useState(null)
@@ -342,6 +346,86 @@ export default function Admin() {
     }
   }
 
+  // Services load/create/update/delete helpers
+  const loadServices = async () => {
+    try {
+      const res = await servicesAPI.list()
+      if (res.success) setServices(res.data)
+    } catch (e) { console.error('Load services failed', e) }
+  }
+
+  const createService = async (item) => {
+    try {
+      console.log('Creating service:', item)
+      const res = await servicesAPI.create(item)
+      console.log('Create service response:', res)
+      if (res.success) {
+        await loadServices()
+        setPublishStatus('saved')
+        setTimeout(() => setPublishStatus(''), 2000)
+      } else {
+        setPublishStatus('error')
+        console.error('Failed to create service:', res.error)
+        alert('Failed to create service: ' + (res.error || 'Unknown error'))
+      }
+    } catch (e) {
+      setPublishStatus('error')
+      console.error('Error creating service:', e)
+      alert('Error creating service: ' + (e.message || 'Unknown error'))
+    }
+  }
+
+  const updateService = async (id, item) => {
+    try {
+      const res = await servicesAPI.update(id, item)
+      if (res.success) {
+        // Update local state immediately for iconImage changes
+        if (item.iconImage !== undefined) {
+          setServices(prev => prev.map(s => s._id === id ? { ...s, ...item, updatedAt: new Date().toISOString() } : s))
+        }
+        // Reload from server to get all latest data
+        await loadServices()
+        setPublishStatus('updated')
+        setTimeout(() => setPublishStatus(''), 2000)
+      } else {
+        setPublishStatus('error')
+      }
+    } catch (e) {
+      setPublishStatus('error')
+      console.error('Error updating service:', e)
+    }
+  }
+
+  const deleteService = async (id) => {
+    if (!confirm('Are you sure you want to delete this service?')) return
+    try {
+      const res = await servicesAPI.delete(id)
+      if (res.success) {
+        await loadServices()
+        setPublishStatus('deleted')
+        setTimeout(() => setPublishStatus(''), 2000)
+      } else {
+        setPublishStatus('error')
+      }
+    } catch (e) {
+      setPublishStatus('error')
+      console.error('Error deleting service:', e)
+    }
+  }
+
+  const uploadServiceImage = async (file) => {
+    try {
+      setUploadingServiceImage(true)
+      const res = await imageUploadAPI.upload(file)
+      if (res.success) return res.data.url
+    } catch (e) {
+      console.error('Service image upload failed', e)
+    } finally {
+      setUploadingServiceImage(false)
+    }
+    return ''
+  }
+
   const editProduct = (product) => {
     setEditingProduct(product)
     setShowProductEditModal(true)
@@ -571,7 +655,11 @@ export default function Admin() {
           key = key.substring(editingPage.length + 1)
         }
         key = dashToCamel(key)
-        const value = fieldEl.tagName === 'IMG' ? (fieldEl.getAttribute('src') || '').trim() : (fieldEl.textContent || '').trim()
+        let value = fieldEl.tagName === 'IMG' ? (fieldEl.getAttribute('src') || '').trim() : (fieldEl.textContent || '').trim()
+        // Normalize image URLs to relative path so public site can prefix API host
+        if (fieldEl.tagName === 'IMG' && value) {
+          value = value.replace(/^https?:\/\/localhost:3001/i, '')
+        }
         // Special mapping: About page hero "About Us" -> hero.title (not heroTitle)
         if (editingPage === 'about' && targetSection === 'hero' && key === 'heroTitle') {
           key = 'title'
@@ -1022,6 +1110,13 @@ export default function Admin() {
                 >
                   <span className="sidebar-icon">📦</span>
                   <span className="sidebar-text">Products</span>
+                </button>
+                <button 
+                  className={`sidebar-item ${activeTab === 'services' ? 'active' : ''}`}
+                  onClick={() => { setActiveTab('services'); loadServices(); }}
+                >
+                  <span className="sidebar-icon">🛠️</span>
+                  <span className="sidebar-text">Services</span>
                 </button>
                 <button 
                   className={`sidebar-item ${activeTab === 'categories' ? 'active' : ''}`}
@@ -1861,6 +1956,320 @@ export default function Admin() {
               </div>
             )}
 
+            {activeTab === 'services' && (
+              <div className="services-management">
+                <div className="section-header">
+                  <h2>🛠️ Services Management</h2>
+                  <div className="header-actions">
+                    <button className="btn-secondary" onClick={loadServices}>
+                      <span>🔄</span> Reload
+                    </button>
+                    {publishStatus === 'saved' && <span className="success-message">✅ Service saved!</span>}
+                    {publishStatus === 'updated' && <span className="success-message">✅ Service updated!</span>}
+                    {publishStatus === 'deleted' && <span className="success-message">✅ Service deleted!</span>}
+                    {publishStatus === 'error' && <span className="error-message">❌ Operation failed</span>}
+                  </div>
+                </div>
+
+                <div className="add-service-card">
+                  <div className="card-header">
+                    <h3>➕ Add New Service</h3>
+                  </div>
+                  <div className="form-grid">
+                    <div className="form-group">
+                      <label>Title *</label>
+                      <input id="svc-title" placeholder="Service title" />
+                    </div>
+                    <div className="form-group">
+                      <label>Icon (Emoji or Upload Image)</label>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                        <div id="svc-icon-preview" style={{ 
+                          width: '48px', 
+                          height: '48px', 
+                          minWidth: '48px',
+                          minHeight: '48px',
+                          border: '2px solid #ddd', 
+                          borderRadius: '8px', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center',
+                          backgroundColor: '#f5f5f5',
+                          fontSize: '24px',
+                          overflow: 'hidden',
+                          flexShrink: 0
+                        }}>
+                          <span id="svc-icon-preview-emoji" style={{ display: 'block' }}>🛠️</span>
+                          <img id="svc-icon-preview-img" style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'none', maxWidth: '48px', maxHeight: '48px' }} alt="Icon preview" />
+                        </div>
+                        <input 
+                          id="svc-icon" 
+                          placeholder="e.g., 🛡️" 
+                          onChange={(e) => {
+                            const emoji = e.target.value.trim()
+                            const previewEmoji = document.getElementById('svc-icon-preview-emoji')
+                            const previewImg = document.getElementById('svc-icon-preview-img')
+                            const iconImageUrl = document.getElementById('svc-icon-image-url').value
+                            console.log('Emoji changed:', emoji, 'Has image URL:', !!iconImageUrl)
+                            // Only show emoji if no image is uploaded
+                            if (!iconImageUrl) {
+                              const displayEmoji = emoji || '🛠️'
+                              previewEmoji.textContent = displayEmoji
+                              previewEmoji.style.display = 'block'
+                              previewImg.style.display = 'none'
+                              console.log('Preview updated to emoji:', displayEmoji)
+                            } else {
+                              console.log('Image is uploaded, keeping image preview')
+                            }
+                          }}
+                        />
+                      </div>
+                      <div style={{ marginTop: '8px' }}>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <input 
+                            id="svc-icon-image" 
+                            type="file" 
+                            accept="image/*" 
+                            style={{ fontSize: '12px', flex: 1 }}
+                            onChange={async (e) => {
+                              const f = e.target.files[0]
+                              if (f) {
+                                const previewImg = document.getElementById('svc-icon-preview-img')
+                                const previewEmoji = document.getElementById('svc-icon-preview-emoji')
+                                
+                                // Show preview immediately from file
+                                const reader = new FileReader()
+                                reader.onload = (event) => {
+                                  previewImg.src = event.target.result
+                                  previewImg.style.display = 'block'
+                                  previewEmoji.style.display = 'none'
+                                }
+                                reader.onerror = () => {
+                                  console.error('Failed to read file')
+                                  alert('Failed to read image file')
+                                }
+                                reader.readAsDataURL(f)
+                                
+                                // Upload to server
+                                try {
+                                  const url = await uploadServiceImage(f)
+                                  if (url) {
+                                    document.getElementById('svc-icon-image-url').value = url
+                                    // Update preview with server URL (in case the file reader didn't work)
+                                    previewImg.src = `http://localhost:3001${url}`
+                                    previewImg.style.display = 'block'
+                                    previewEmoji.style.display = 'none'
+                                    console.log('Icon uploaded successfully:', url)
+                                  } else {
+                                    // Upload failed, revert to emoji
+                                    previewImg.style.display = 'none'
+                                    const iconInput = document.getElementById('svc-icon')
+                                    previewEmoji.textContent = iconInput.value.trim() || '🛠️'
+                                    previewEmoji.style.display = 'block'
+                                    alert('Failed to upload icon image')
+                                  }
+                                } catch (error) {
+                                  console.error('Icon upload error:', error)
+                                  previewImg.style.display = 'none'
+                                  const iconInput = document.getElementById('svc-icon')
+                                  previewEmoji.textContent = iconInput.value.trim() || '🛠️'
+                                  previewEmoji.style.display = 'block'
+                                  alert('Error uploading icon: ' + (error.message || 'Unknown error'))
+                                }
+                              }
+                            }} 
+                          />
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              document.getElementById('svc-icon-image').value = ''
+                              document.getElementById('svc-icon-image-url').value = ''
+                              const previewImg = document.getElementById('svc-icon-preview-img')
+                              const previewEmoji = document.getElementById('svc-icon-preview-emoji')
+                              const iconInput = document.getElementById('svc-icon')
+                              previewImg.style.display = 'none'
+                              previewImg.src = ''
+                              previewEmoji.textContent = iconInput.value.trim() || '🛠️'
+                              previewEmoji.style.display = 'block'
+                            }}
+                            style={{ 
+                              fontSize: '11px', 
+                              padding: '4px 8px', 
+                              backgroundColor: '#ff4444', 
+                              color: 'white', 
+                              border: 'none', 
+                              borderRadius: '4px',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Clear Image
+                          </button>
+                        </div>
+                        <input id="svc-icon-image-url" type="hidden" />
+                        {uploadingServiceImage && <div className="upload-status" style={{ fontSize: '11px', marginTop: '4px' }}>📤 Uploading icon...</div>}
+                      </div>
+                    </div>
+                    <div className="form-group">
+                      <label>Category</label>
+                      <input id="svc-category" placeholder="Optional category" />
+                    </div>
+                    <div className="form-group">
+                      <label>Order</label>
+                      <input id="svc-order" type="number" defaultValue="0" />
+                    </div>
+                    <div className="form-group">
+                      <label>Active</label>
+                      <input id="svc-active" type="checkbox" defaultChecked />
+                    </div>
+                    <div className="form-group full-width">
+                      <label>Description *</label>
+                      <textarea id="svc-description" rows="3" placeholder="Short description" />
+                    </div>
+                    <div className="form-group full-width">
+                      <label>Image</label>
+                      <input id="svc-image" type="file" accept="image/*" onChange={async (e) => {
+                        const f = e.target.files[0]
+                        if (f) {
+                          const url = await uploadServiceImage(f)
+                          if (url) document.getElementById('svc-image-url').value = url
+                        }
+                      }} />
+                      <input id="svc-image-url" type="hidden" />
+                      {uploadingServiceImage && <div className="upload-status">📤 Uploading...</div>}
+                    </div>
+                  </div>
+                  <div className="form-actions">
+                    <button className="btn-success" onClick={async () => {
+                      const title = document.getElementById('svc-title').value.trim()
+                      const description = document.getElementById('svc-description').value.trim()
+                      const icon = document.getElementById('svc-icon').value.trim() || '🛠️'
+                      const iconImage = document.getElementById('svc-icon-image-url').value.trim()
+                      const image = document.getElementById('svc-image-url').value.trim()
+                      const category = document.getElementById('svc-category').value.trim()
+                      const isActive = document.getElementById('svc-active').checked
+                      const order = parseInt(document.getElementById('svc-order').value || '0', 10)
+
+                      if (!title || !description) { alert('Please fill in Title and Description'); return }
+
+                      await createService({ title, description, icon, iconImage, image, category, isActive, order })
+
+                      // reset quick form
+                      document.getElementById('svc-title').value = ''
+                      document.getElementById('svc-description').value = ''
+                      document.getElementById('svc-icon').value = ''
+                      document.getElementById('svc-category').value = ''
+                      document.getElementById('svc-icon-image').value = ''
+                      document.getElementById('svc-icon-image-url').value = ''
+                      document.getElementById('svc-image').value = ''
+                      document.getElementById('svc-image-url').value = ''
+                      document.getElementById('svc-active').checked = true
+                      document.getElementById('svc-order').value = '0'
+                      // Reset icon preview
+                      const previewEmoji = document.getElementById('svc-icon-preview-emoji')
+                      const previewImg = document.getElementById('svc-icon-preview-img')
+                      previewEmoji.textContent = '🛠️'
+                      previewEmoji.style.display = 'block'
+                      previewImg.style.display = 'none'
+                      previewImg.src = ''
+                    }}>
+                      Add Service
+                    </button>
+                  </div>
+                </div>
+
+                <div className="services-table-card">
+                  <div className="card-header">
+                    <h3>📋 Services List</h3>
+                  </div>
+                  <div className="table-container">
+                    {services.length === 0 ? (
+                      <div className="empty-state"><p>No services found. Add your first service above!</p></div>
+                    ) : (
+                      <table className="admin-table">
+                        <thead>
+                          <tr>
+                            <th>Order</th>
+                            <th>Icon</th>
+                            <th>Title</th>
+                            <th>Category</th>
+                            <th>Active</th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {services.map(svc => (
+                            <tr key={svc._id}>
+                              <td>
+                                <input type="number" defaultValue={svc.order || 0} onBlur={(e)=>updateService(svc._id,{ order: parseInt(e.target.value||'0',10) })} />
+                              </td>
+                              <td style={{ minWidth: '120px' }}>
+                                {svc.iconImage ? (
+                                  <img 
+                                    key={`icon-${svc._id}-${svc.iconImage}`}
+                                    src={`http://localhost:3001${svc.iconImage}?v=${svc.updatedAt || Date.now()}`} 
+                                    alt="Icon" 
+                                    style={{ width: '32px', height: '32px', objectFit: 'contain', borderRadius: '4px', marginBottom: '4px', display: 'block' }}
+                                    onError={(e) => {
+                                      console.error('Icon image failed to load:', svc.iconImage)
+                                      e.target.style.display = 'none'
+                                    }}
+                                  />
+                                ) : (
+                                  <span style={{ fontSize: 18, display: 'block', marginBottom: '4px' }}>{svc.icon || '🛠️'}</span>
+                                )}
+                                <input 
+                                  type="text" 
+                                  defaultValue={svc.icon || '🛠️'} 
+                                  placeholder="Emoji"
+                                  style={{ width: '80px', fontSize: '12px', padding: '2px' }}
+                                  onBlur={(e)=>updateService(svc._id,{ icon: e.target.value.trim() || '🛠️' })} 
+                                />
+                                <input 
+                                  type="file" 
+                                  accept="image/*" 
+                                  style={{ fontSize: '10px', width: '100%', marginTop: '4px' }}
+                                  onChange={async (e) => {
+                                    const f = e.target.files[0]
+                                    if (f) {
+                                      try {
+                                        const url = await uploadServiceImage(f)
+                                        if (url) {
+                                          console.log('Icon uploaded, updating service:', svc._id, url)
+                                          await updateService(svc._id, { iconImage: url })
+                                          e.target.value = '' // Reset file input
+                                        }
+                                      } catch (err) {
+                                        console.error('Failed to upload icon:', err)
+                                        alert('Failed to upload icon: ' + (err.message || 'Unknown error'))
+                                      }
+                                    }
+                                  }}
+                                />
+                              </td>
+                              <td>
+                                <input defaultValue={svc.title} onBlur={(e)=>updateService(svc._id,{ title: e.target.value })} />
+                                <div className="muted small">
+                                  <input defaultValue={svc.description} onBlur={(e)=>updateService(svc._id,{ description: e.target.value })} />
+                                </div>
+                              </td>
+                              <td>
+                                <input defaultValue={svc.category || ''} onBlur={(e)=>updateService(svc._id,{ category: e.target.value })} />
+                              </td>
+                              <td>
+                                <input type="checkbox" defaultChecked={!!svc.isActive} onChange={(e)=>updateService(svc._id,{ isActive: e.target.checked })} />
+                              </td>
+                              <td>
+                                <button className="btn-danger" onClick={()=>deleteService(svc._id)}>Delete</button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {activeTab === 'categories' && (
               <div className="categories-management">
                 <div className="section-header">
@@ -2466,27 +2875,9 @@ export default function Admin() {
                             </div>
                             
                             <div className="about-image">
-                              <div className="image-upload-container">
-                                <div className="image-placeholder editable-image" data-field="about-image">
-                                  <div className="professional-image">
-                                    <div className="person-icon">👨‍💼</div>
-                                    <div className="office-background"></div>
-                                  </div>
-                                  <div className="image-upload-overlay">
-                                    <input 
-                                      type="file" 
-                                      accept="image/*" 
-                                      className="image-upload-input" 
-                                      data-field="about-image"
-                                      onChange={async (e) => {
-                                        const file = e.target.files[0]
-                                        if (file) {
-                                          await handlePageImageUpload(file, 'about-image', e.target)
-                                        }
-                                      }}
-                                    />
-                                    <button className="upload-btn">📷 Upload Image</button>
-                                  </div>
+                              <div className="image-placeholder">
+                                <div className="company-logo-container">
+                                  <img src="/logo.png" alt="Company Logo" className="company-logo-homepage" />
                                 </div>
                               </div>
                             </div>
@@ -2557,6 +2948,8 @@ export default function Admin() {
                           </div>
                         </div>
                       </section>
+
+                      
 
                       {/* Request Quote Section - Editable */}
                       <section className="request-quote editable-section" data-section="quote">

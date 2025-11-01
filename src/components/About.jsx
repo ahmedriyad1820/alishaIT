@@ -2,7 +2,7 @@ import { useContent } from '../contexts/ContentContext'
 
 export default function About({ onNavigate }) {
   const { content } = useContent()
-  const aboutContent = content.home?.about || {}
+  const aboutContent = content.about?.content || {}
 
   return (
     <section id="about" className="about">
@@ -31,13 +31,9 @@ export default function About({ onNavigate }) {
           
           <div className="about-image">
             <div className="image-placeholder">
-              {aboutContent.image ? (
-                <img src={aboutContent.image} alt="About Us" className="about-img" />
-              ) : (
-                <div className="company-logo-container">
-                  <img src="/logo2.png" alt="Company Logo" className="company-logo-homepage" />
-                </div>
-              )}
+              <div className="company-logo-container">
+                <img src="/logo.png" alt="Company Logo" className="company-logo-homepage" />
+              </div>
             </div>
           </div>
         </div>

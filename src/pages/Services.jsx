@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useContent } from '../contexts/ContentContext'
+import { servicesAPI } from '../api/client.js'
 
 export default function Services({ onNavigate }) {
   const { content } = useContent()
@@ -7,49 +8,27 @@ export default function Services({ onNavigate }) {
   const header = servicesPage.header || {}
   const [selectedService, setSelectedService] = useState(null)
   const [showDetails, setShowDetails] = useState(false)
+  const [services, setServices] = useState([])
+  const [loading, setLoading] = useState(true)
 
-  const services = [
-    {
-      title: "Cyber Security",
-      description: "Amet justo dolor lorem kasd amet magna sea stet eos vero lorem ipsum dolore sed",
-      icon: "🛡️",
-      details: "Protect your business with advanced security solutions and threat monitoring systems. Our comprehensive cybersecurity services include network security, data protection, and 24/7 monitoring."
-    },
-    {
-      title: "Data Analytics", 
-      description: "Amet justo dolor lorem kasd amet magna sea stet eos vero lorem ipsum dolore sed",
-      icon: "📊",
-      details: "Transform your data into actionable insights with our comprehensive analytics solutions. We help you make data-driven decisions that drive business growth and efficiency."
-    },
-    {
-      title: "Web Development",
-      description: "Amet justo dolor lorem kasd amet magna sea stet eos vero lorem ipsum dolore sed", 
-      icon: "</>",
-      details: "Create stunning, responsive websites that drive engagement and conversions. Our web development services include custom websites, e-commerce solutions, and web applications."
-    },
-    {
-      title: "Apps Development",
-      description: "Amet justo dolor lorem kasd amet magna sea stet eos vero lorem ipsum dolore sed",
-      icon: "🤖",
-      details: "Build powerful mobile applications for iOS and Android platforms. Our app development services cover everything from concept to deployment and maintenance."
-    },
-    {
-      title: "SEO Optimization",
-      description: "Amet justo dolor lorem kasd amet magna sea stet eos vero lorem ipsum dolore sed",
-      icon: "🔍",
-      details: "Improve your search engine rankings and drive organic traffic to your website. Our SEO services include keyword research, on-page optimization, and content strategy."
-    }
-  ]
+  useEffect(() => {
+    (async () => {
+      try {
+        setLoading(true)
+        const res = await servicesAPI.list(true) // Get only active services
+        if (res.success) {
+          setServices(res.data || [])
+        }
+      } catch (_) {
+        setServices([])
+      } finally {
+        setLoading(false)
+      }
+    })()
+  }, [])
 
-  const allServices = [
-    "Cyber Security",
-    "Data Analytics", 
-    "Keyword Research",
-    "Digital Marketing",
-    "Web Design",
-    "Web Development",
-    "SEO Optimization"
-  ]
+  // Generate allServices list from fetched services for sidebar
+  const allServices = services.map(s => s.title)
 
   const handleServiceClick = (service) => {
     setSelectedService(service)
@@ -60,6 +39,7 @@ export default function Services({ onNavigate }) {
     const service = services.find(s => s.title === serviceName)
     if (service) {
       setSelectedService(service)
+      setShowDetails(true)
     }
   }
 
@@ -94,17 +74,40 @@ export default function Services({ onNavigate }) {
               </div>
 
               <div className="services-grid">
-                {services.map((service, index) => (
-                  <div key={index} className="service-card" onClick={() => handleServiceClick(service)}>
-                    <div className="service-icon">
-                      <div className="icon-diamond">
-                        <span className="icon-symbol">{service.icon}</span>
-                      </div>
-                    </div>
-                    <h3 className="service-title">{service.title}</h3>
-                    <p className="service-description">{service.description}</p>
+                {loading ? (
+                  <div className="service-card" style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '2rem' }}>
+                    <p>Loading services...</p>
                   </div>
-                ))}
+                ) : services.length === 0 ? (
+                  <div className="service-card" style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '2rem' }}>
+                    <p>No services available yet.</p>
+                  </div>
+                ) : (
+                  services.map((service) => (
+                    <div key={service._id} className="service-card" onClick={() => handleServiceClick(service)}>
+                      <div className="service-icon">
+                        <div className="icon-diamond">
+                          {service.iconImage ? (
+                            <img 
+                              key={`${service._id}-${service.iconImage}`}
+                              src={`http://localhost:3001${service.iconImage}${service.iconImage.includes('?') ? '&' : '?'}v=${service.updatedAt ? new Date(service.updatedAt).getTime() : Date.now()}`} 
+                              alt={service.title}
+                              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                              onError={(e) => {
+                                console.error('Icon image failed to load:', service.iconImage)
+                                e.target.style.display = 'none'
+                              }}
+                            />
+                          ) : (
+                            <span className="icon-symbol">{service.icon || '🛠️'}</span>
+                          )}
+                        </div>
+                      </div>
+                      <h3 className="service-title">{service.title}</h3>
+                      <p className="service-description">{service.description}</p>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </section>
@@ -196,22 +199,49 @@ export default function Services({ onNavigate }) {
             <div className="container">
               <div className="details-layout">
                 <div className="main-content">
-                  <div className="service-image">
-                    <div className="image-placeholder">
-                      <div className="business-meeting">
-                        <div className="person-1">👨‍💼</div>
-                        <div className="person-2">👩‍💼</div>
-                        <div className="handshake">🤝</div>
-                        <div className="table">📋</div>
+                  <div 
+                    className="service-image"
+                    style={{
+                      width: '100%',
+                      borderRadius: '12px',
+                      background: '#0b1220',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      overflow: 'hidden',
+                      maxHeight: '70vh',
+                      marginBottom: '2rem'
+                    }}
+                  >
+                    {selectedService?.image ? (
+                      <img 
+                        src={`http://localhost:3001${selectedService.image}`} 
+                        alt={selectedService.title}
+                        style={{ 
+                          width: '100%', 
+                          height: '100%', 
+                          objectFit: 'contain', 
+                          display: 'block',
+                          borderRadius: '12px'
+                        }}
+                      />
+                    ) : (
+                      <div className="image-placeholder">
+                        <div className="business-meeting">
+                          <div className="person-1">👨‍💼</div>
+                          <div className="person-2">👩‍💼</div>
+                          <div className="handshake">🤝</div>
+                          <div className="table">📋</div>
+                        </div>
+                        <div className="office-background"></div>
                       </div>
-                      <div className="office-background"></div>
-                    </div>
+                    )}
                   </div>
 
                   <div className="service-info">
                     <h2 className="service-title">{selectedService?.title}</h2>
-                    <p className="service-description">
-                      {selectedService?.details}
+                    <p className="service-description" style={{ whiteSpace: 'pre-line' }}>
+                      {selectedService?.description}
                     </p>
                     <p className="service-description">
                       Our team of experienced professionals is dedicated to delivering high-quality solutions that meet your specific business requirements. We use the latest technologies and industry best practices to ensure your project's success.

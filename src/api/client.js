@@ -13,11 +13,16 @@ const apiCall = async (endpoint, options = {}) => {
       ...options
     })
     
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: `HTTP ${response.status}: ${response.statusText}` }))
+      return { success: false, error: errorData.error || `HTTP ${response.status}: ${response.statusText}` }
+    }
+    
     const data = await response.json()
     return data
   } catch (error) {
-    console.error('API call error:', error)
-    return { success: false, error: 'Network error' }
+    console.error('API call error:', error, 'Endpoint:', endpoint)
+    return { success: false, error: `Network error: ${error.message || 'Failed to connect to server. Is the server running on port 3001?'}` }
   }
 }
 
@@ -279,6 +284,30 @@ export const teamMembersAPI = {
   }
 }
 
+// Services API
+export const servicesAPI = {
+  async list(activeOnly = false) {
+    const params = new URLSearchParams({ t: Date.now().toString() })
+    if (activeOnly) params.append('active', 'true')
+    return await apiCall(`/services?${params.toString()}`)
+  },
+  async create(item) {
+    return await apiCall('/services', {
+      method: 'POST',
+      body: JSON.stringify(item)
+    })
+  },
+  async update(id, item) {
+    return await apiCall(`/services/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(item)
+    })
+  },
+  async delete(id) {
+    return await apiCall(`/services/${id}`, { method: 'DELETE' })
+  }
+}
+
 // Blogs API
 export const blogAPI = {
   async list(publishedOnly = false) {
@@ -319,5 +348,6 @@ export default {
   slidersAPI,
   sliderConfigAPI,
   teamMembersAPI,
+  servicesAPI,
   blogAPI
 }
