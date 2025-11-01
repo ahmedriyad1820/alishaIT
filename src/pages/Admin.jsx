@@ -647,6 +647,14 @@ export default function Admin() {
       }
 
       sections[targetSection] = sections[targetSection] || {}
+      // Preserve existing data for sections that have arrays/objects (like FAQ questions)
+      if (pageContent[targetSection]) {
+        Object.keys(pageContent[targetSection]).forEach(key => {
+          if (Array.isArray(pageContent[targetSection][key]) || (typeof pageContent[targetSection][key] === 'object' && pageContent[targetSection][key] !== null)) {
+            sections[targetSection][key] = pageContent[targetSection][key]
+          }
+        })
+      }
 
       sectionEl.querySelectorAll('[data-field]').forEach((fieldEl) => {
         const rawField = fieldEl.getAttribute('data-field') || ''
@@ -670,7 +678,30 @@ export default function Admin() {
       })
     })
 
-    setPageContent((prev) => ({ ...prev, ...sections }))
+    // Deep merge sections into pageContent to preserve arrays/objects
+    const isObject = (item) => item && typeof item === 'object' && !Array.isArray(item)
+    const mergeSections = (target, source) => {
+      const output = { ...target }
+      Object.keys(source).forEach(key => {
+        if (Array.isArray(source[key])) {
+          output[key] = source[key] // Arrays replace entirely from source
+        } else if (isObject(source[key]) && isObject(target[key])) {
+          // Deep merge objects to preserve arrays inside (like FAQ.questions)
+          output[key] = { ...target[key], ...source[key] }
+          // Preserve arrays from target if not in source
+          Object.keys(target[key]).forEach(subKey => {
+            if (Array.isArray(target[key][subKey]) && !source[key][subKey]) {
+              output[key][subKey] = target[key][subKey]
+            }
+          })
+        } else {
+          output[key] = source[key]
+        }
+      })
+      return output
+    }
+    
+    setPageContent((prev) => mergeSections(prev, sections))
     return sections
   }
 
@@ -687,12 +718,55 @@ export default function Admin() {
 
     if (!editingPage) return
     
-    console.log('Publishing page content:', { editingPage, sections: { ...pageContent, ...latestSections } })
+    // Deep merge function to preserve nested objects and arrays
+    const isObject = (item) => item && typeof item === 'object' && !Array.isArray(item)
+    const deepMerge = (target, source) => {
+      const output = { ...target }
+      if (isObject(target) && isObject(source)) {
+        // First, preserve all keys from target that aren't in source (like FAQ.questions)
+        Object.keys(target).forEach(key => {
+          if (!(key in source)) {
+            output[key] = target[key]
+          }
+        })
+        // Then merge source into output
+        Object.keys(source).forEach(key => {
+          if (Array.isArray(source[key])) {
+            output[key] = source[key] // Arrays replace entirely
+          } else if (isObject(source[key]) && isObject(target[key])) {
+            // Deep merge nested objects, preserving arrays in target
+            const nestedMerged = { ...target[key] }
+            Object.keys(source[key]).forEach(subKey => {
+              if (Array.isArray(source[key][subKey])) {
+                nestedMerged[subKey] = source[key][subKey]
+              } else if (isObject(source[key][subKey]) && isObject(target[key][subKey])) {
+                nestedMerged[subKey] = deepMerge(target[key][subKey], source[key][subKey])
+              } else {
+                nestedMerged[subKey] = source[key][subKey]
+              }
+            })
+            // Preserve arrays from target that weren't in source
+            Object.keys(target[key]).forEach(subKey => {
+              if (Array.isArray(target[key][subKey]) && !(subKey in source[key])) {
+                nestedMerged[subKey] = target[key][subKey]
+              }
+            })
+            output[key] = nestedMerged
+          } else {
+            output[key] = source[key]
+          }
+        })
+      }
+      return output
+    }
+    
+    const mergedContent = deepMerge(pageContent, latestSections)
+    console.log('Publishing page content:', { editingPage, sections: mergedContent })
     setIsPublishing(true)
     setPublishStatus('')
     
     try {
-      const result = await pageContentAPI.update(editingPage, { ...pageContent, ...latestSections }, true)
+      const result = await pageContentAPI.update(editingPage, mergedContent, true)
       console.log('Publish result:', result)
       if (result.success) {
         setPublishStatus('success')
@@ -3137,6 +3211,138 @@ export default function Admin() {
                                 <textarea name="message" placeholder="Message" rows="4"></textarea>
                                 <button className="submit-btn" type="submit">Request A Quote</button>
                               </form>
+                            </div>
+                          </div>
+                        </div>
+                      </section>
+
+                      {/* FAQ Section - Editable */}
+                      <section className="faq editable-section" data-section="faq">
+                        <div className="container">
+                          <div className="faq-content">
+                            <div className="faq-intro">
+                              <span 
+                                className="faq-subtitle editable-text" 
+                                data-field="faq-subtitle"
+                                contentEditable="true"
+                                onBlur={(e) => handleContentChange('faq', 'subtitle', e.target.textContent)}
+                              >
+                                {pageContent.faq?.subtitle || 'GENERAL FAQS'}
+                              </span>
+                              <h2 
+                                className="faq-title editable-text" 
+                                data-field="faq-title"
+                                contentEditable="true"
+                                onBlur={(e) => handleContentChange('faq', 'title', e.target.textContent)}
+                              >
+                                {pageContent.faq?.title || 'Any Question? Check the FAQs or Contact Us'}
+                              </h2>
+                              <div className="faq-underline">
+                                <div className="underline-line"></div>
+                                <div className="underline-line short"></div>
+                              </div>
+                              <p 
+                                className="faq-description editable-text" 
+                                data-field="faq-description"
+                                contentEditable="true"
+                                onBlur={(e) => handleContentChange('faq', 'description', e.target.textContent)}
+                              >
+                                {pageContent.faq?.description || 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.'}
+                              </p>
+                              <button 
+                                className="faq-button editable-text" 
+                                data-field="faq-button-text"
+                                contentEditable="true"
+                                onBlur={(e) => handleContentChange('faq', 'buttonText', e.target.textContent)}
+                              >
+                                {pageContent.faq?.buttonText || 'Explore More FAQs'}
+                              </button>
+                            </div>
+                            
+                            <div className="faq-accordion">
+                              {(pageContent.faq?.questions || [
+                                { question: 'How to build a website?', answer: 'Lorem ipsum...' },
+                                { question: 'How long will it take?', answer: 'Lorem ipsum...' },
+                                { question: 'Do you only create HTML websites?', answer: 'Lorem ipsum...' },
+                                { question: 'Will my website be mobile-friendly?', answer: 'Lorem ipsum...' },
+                                { question: 'Will you maintain my site for me?', answer: 'Lorem ipsum...' }
+                              ]).map((faq, index) => (
+                                <div key={index} className="faq-item editable-card" style={{ marginBottom: '8px' }}>
+                                  <div 
+                                    className="faq-question"
+                                    style={{ cursor: 'pointer', padding: '12px', backgroundColor: '#f5f5f5', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                                  >
+                                    <input
+                                      type="text"
+                                      defaultValue={faq.question}
+                                      placeholder="Question"
+                                      style={{ flex: 1, padding: '8px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '14px', marginRight: '8px' }}
+                                      onBlur={(e) => {
+                                        const questions = [...(pageContent.faq?.questions || [])]
+                                        if (!questions[index]) questions[index] = { question: '', answer: '' }
+                                        questions[index] = { ...questions[index], question: e.target.value.trim() }
+                                        handleContentChange('faq', 'questions', questions)
+                                      }}
+                                    />
+                                    <span style={{ fontSize: '12px', color: '#666' }}>▼</span>
+                                  </div>
+                                  <div className="faq-answer" style={{ padding: '12px', borderTop: '1px solid #e0e0e0', marginTop: '8px' }}>
+                                    <textarea
+                                      defaultValue={faq.answer}
+                                      placeholder="Answer"
+                                      rows="3"
+                                      style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit' }}
+                                      onBlur={(e) => {
+                                        const questions = [...(pageContent.faq?.questions || [])]
+                                        if (!questions[index]) questions[index] = { question: '', answer: '' }
+                                        questions[index] = { ...questions[index], answer: e.target.value.trim() }
+                                        handleContentChange('faq', 'questions', questions)
+                                      }}
+                                    />
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const questions = [...(pageContent.faq?.questions || [])]
+                                      questions.splice(index, 1)
+                                      handleContentChange('faq', 'questions', questions)
+                                    }}
+                                    style={{
+                                      marginTop: '8px',
+                                      padding: '6px 12px',
+                                      fontSize: '11px',
+                                      backgroundColor: '#ff4444',
+                                      color: 'white',
+                                      border: 'none',
+                                      borderRadius: '4px',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                              ))}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const questions = [...(pageContent.faq?.questions || [])]
+                                  questions.push({ question: '', answer: '' })
+                                  handleContentChange('faq', 'questions', questions)
+                                }}
+                                style={{
+                                  marginTop: '12px',
+                                  padding: '10px 16px',
+                                  fontSize: '13px',
+                                  backgroundColor: '#4CAF50',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  cursor: 'pointer',
+                                  width: '100%'
+                                }}
+                              >
+                                + Add New Question
+                              </button>
                             </div>
                           </div>
                         </div>

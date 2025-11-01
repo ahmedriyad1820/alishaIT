@@ -93,7 +93,7 @@ export const adminAPI = {
 // Page Content API
 export const pageContentAPI = {
   async get(pageName) {
-    return await apiCall(`/pages/${pageName}`)
+    return await apiCall(`/pages/${pageName}?t=${Date.now()}`)
   },
 
   async update(pageName, sections, published = false) {

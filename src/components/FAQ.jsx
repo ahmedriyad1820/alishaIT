@@ -1,9 +1,12 @@
 import { useState } from 'react'
+import { useContent } from '../contexts/ContentContext'
 
 export default function FAQ() {
+  const { content } = useContent()
+  const faqContent = content.home?.faq || {}
   const [activeIndex, setActiveIndex] = useState(0)
 
-  const faqs = [
+  const faqs = faqContent.questions || [
     {
       question: "How to build a website?",
       answer: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat."
@@ -35,14 +38,14 @@ export default function FAQ() {
       <div className="container">
         <div className="faq-content">
           <div className="faq-intro">
-            <span className="faq-subtitle">GENERAL FAQS</span>
-            <h2 className="faq-title">Any Question? Check the FAQs or Contact Us</h2>
+            <span className="faq-subtitle">{faqContent.subtitle || 'GENERAL FAQS'}</span>
+            <h2 className="faq-title">{faqContent.title || 'Any Question? Check the FAQs or Contact Us'}</h2>
             <div className="faq-underline">
               <div className="underline-line"></div>
               <div className="underline-line short"></div>
             </div>
             <p className="faq-description">
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+              {faqContent.description || 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.'}
             </p>
             <button 
               className="faq-button"
@@ -53,7 +56,7 @@ export default function FAQ() {
                 }
               }}
             >
-              Explore More FAQs
+              {faqContent.buttonText || 'Explore More FAQs'}
             </button>
           </div>
           

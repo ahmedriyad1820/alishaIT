@@ -785,6 +785,9 @@ app.get('/api/pages/:pageName', async (req, res) => {
       await pageContent.save()
     }
     
+    res.set('Cache-Control', 'no-store')
+    res.set('Pragma', 'no-cache')
+    res.set('Expires', '0')
     res.json({ success: true, data: pageContent })
   } catch (error) {
     res.status(500).json({ success: false, error: error.message })
@@ -1013,28 +1016,55 @@ app.post('/api/pages/:pageName', requireAdmin, async (req, res) => {
   try {
     const { pageName } = req.params
     const { sections, published = false } = req.body
+    if (sections && typeof sections !== 'object') {
+      return res.status(400).json({ success: false, error: 'sections must be an object' })
+    }
+
+    // Deep merge function
+    const isObject = (val) => val && typeof val === 'object' && !Array.isArray(val)
+    const mergeDeep = (target = {}, source = {}) => {
+      const out = { ...(target || {}) }
+      Object.keys(source || {}).forEach((key) => {
+        const sVal = source[key]
+        const tVal = out[key]
+        if (Array.isArray(sVal)) {
+          // For arrays (like FAQ questions), replace the entire array
+          out[key] = sVal
+        } else if (isObject(tVal) && isObject(sVal)) {
+          out[key] = mergeDeep(tVal, sVal)
+        } else {
+          out[key] = sVal
+        }
+      })
+      return out
+    }
     
     let pageContent = await PageContent.findOne({ pageName })
     
     if (pageContent) {
-      // Update existing page
-      pageContent.sections = sections
+      const existingSections = (pageContent.sections && typeof pageContent.sections.toObject === 'function')
+        ? pageContent.sections.toObject()
+        : (pageContent.sections || {})
+      pageContent.sections = mergeDeep(existingSections, sections || {})
       pageContent.published = published
       pageContent.lastUpdated = new Date()
       await pageContent.save()
     } else {
-      // Create new page
       pageContent = new PageContent({
         pageName,
-        sections,
+        sections: sections || {},
         published,
         lastUpdated: new Date()
       })
       await pageContent.save()
     }
     
+    res.set('Cache-Control', 'no-store')
+    res.set('Pragma', 'no-cache')
+    res.set('Expires', '0')
     res.json({ success: true, data: pageContent })
   } catch (error) {
+    console.error('Error updating page content:', error)
     res.status(500).json({ success: false, error: error.message })
   }
 })
@@ -1103,6 +1133,34 @@ const getDefaultPageContent = (pageName) => {
         title: 'Need A Free Quote? Please Feel Free to Contact Us',
         description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.',
         phoneNumber: '+012 345 6789'
+      },
+      faq: {
+        subtitle: 'GENERAL FAQS',
+        title: 'Any Question? Check the FAQs or Contact Us',
+        description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.',
+        buttonText: 'Explore More FAQs',
+        questions: [
+          {
+            question: 'How to build a website?',
+            answer: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.'
+          },
+          {
+            question: 'How long will it take to get a new website?',
+            answer: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.'
+          },
+          {
+            question: 'Do you only create HTML websites?',
+            answer: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.'
+          },
+          {
+            question: 'Will my website be mobile-friendly?',
+            answer: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.'
+          },
+          {
+            question: 'Will you maintain my site for me?',
+            answer: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.'
+          }
+        ]
       }
     },
     'about': {
